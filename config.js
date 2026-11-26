@@ -1,12 +1,12 @@
 // ⚙️ Réglages de l'app — modifiez ce fichier puis poussez-le sur GitHub.
 window.CHIOT_CONFIG = {
   // Nom du chiot (affiché sur l'accueil)
-  nomChiot: "[Nom]",
+  nomChiot: "IVER",
 
   // Les deux personnes qui notent
   personnes: [
-    { id: "a", nom: "Moi", initiale: "A", couleur: "#2F5BC4" },
-    { id: "b", nom: "Ma chérie", initiale: "B", couleur: "#B4467A" }
+    { id: "a", nom: "Xavier", initiale: "A", couleur: "#2F5BC4" },
+    { id: "b", nom: "Violaine", initiale: "B", couleur: "#B4467A" }
   ],
 
   // Rappel "Sortir bientôt" si pas de pipi depuis X minutes
