@@ -1054,7 +1054,7 @@ async function start() {
   }
   store.subscribe((list) => {
     const all = list.filter((e) => typeof e.time === "number");
-    events = all.filter((e) => e.type !== "rdv" && e.type !== "mot");
+    events = all.filter((e) => e.type !== "rdv" && e.type !== "mot" && e.type !== "parcours");
     rdvs = all.filter((e) => e.type === "rdv");
     mots = all.filter((e) => e.type === "mot");
     majBadgeMots();
