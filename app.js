@@ -373,7 +373,7 @@ function renderJour(d0) {
       <span class="eyebrow">${esc(dateTxt)}</span>
     </div>
 
-    ${motsNonLus()[0] ? apercuMot(motsNonLus()[0], motsNonLus().length) : ""}
+    ${mots.length ? apercuMot() : ""}
 
     ${dort ? sleepNowCard(dort) : ""}
 
@@ -846,11 +846,18 @@ function majBadgeMots() {
 }
 const couleurMot = (who) => (PEOPLE.findIndex((p) => p.id === who) === 1 ? "rose" : "jaune");
 
-function apercuMot(m, n) {
+// Sur l'accueil : toujours le dernier post-it ; « Nouveau » s'il vient de l'autre et n'est pas encore lu
+function apercuMot() {
+  const nonLus = motsNonLus();
+  const m = nonLus[0] || [...mots].sort((a, b) => b.time - a.time)[0];
   const p = person(m.who);
-  return `<a href="#/mots" class="postit-apercu ${couleurMot(m.who)}">
-    <span class="pa-top">${n > 1 ? `${n} nouveaux mots` : "Nouveau mot"} de ${esc(p.nom || "l’autre")}</span>
-    <span class="pa-txt">${esc(m.text.length > 90 ? m.text.slice(0, 90) + "…" : m.text)}</span>
+  const n = nonLus.length;
+  const quand = (Date.now() - m.time) / 60000 < 60 ? ilYa(m.time) : `${dateLongue(m.time).toLowerCase()} à ${hfr(m.time)}`;
+  const titre = n ? `${n > 1 ? `${n} nouveaux mots` : "Nouveau mot"} de ${esc(p.nom || "l’autre")}` : `Dernier mot · ${esc(p.nom || "")} · ${esc(quand)}`;
+  return `<a href="#/mots" class="postit-apercu ${couleurMot(m.who)}${n ? " neuf" : ""}">
+    <span class="scotch" aria-hidden="true"></span>
+    <span class="pa-top">${titre}</span>
+    <span class="pa-txt">${esc(m.text.length > 120 ? m.text.slice(0, 120) + "…" : m.text)}</span>
   </a>`;
 }
 
