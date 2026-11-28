@@ -254,4 +254,8 @@ textarea.input{height:auto;padding:12px 14px;font-size:15px;font-weight:500;font
 @keyframes ic-snipB{0%,66%,82%,100%{transform:none}72%,90%{transform:rotate(-11deg)}}
 @keyframes ic-push{0%,64%,100%{transform:none}74%,84%{transform:translateX(-2.6px)}}
 @keyframes ic-tap{0%{transform:none}40%{transform:scale(1.25) rotate(-8deg)}100%{transform:none}}
+.ic-caca .odeur,.ic-repas .odeur{opacity:.75}
+.live .ic-caca .odeur,.live .ic-repas .odeur{animation:ic-odeur 2.4s ease-in-out infinite}
+.live .ic-caca .odeur2,.live .ic-repas .odeur2{animation-delay:1.2s}
+@keyframes ic-odeur{0%{transform:translateY(2px);opacity:0}30%{opacity:.9}70%{opacity:.9}100%{transform:translateY(-2.5px);opacity:0}}
 @media (prefers-reduced-motion:reduce){.ic,.ic *{animation:none!important}}

@@ -22,9 +22,9 @@ const ICONS = {
   // goutte (+ reflet)
   pipi: '<path d="M12 3.2c3.2 4.1 6.2 7.4 6.2 11a6.2 6.2 0 0 1-12.4 0c0-3.6 3-6.9 6.2-11z"/><path class="reflet" d="M9.3 14.6a2.8 2.8 0 0 0 2.4 2.6"/>',
   // petit tas en trois étages
-  caca: '<path d="M4.8 19.6h14.4a2.4 2.4 0 0 0 0-4.8H4.8a2.4 2.4 0 0 0 0 4.8z"/><path d="M6.9 14.8a2.3 2.3 0 0 1 0-4.6h10.2a2.3 2.3 0 0 1 0 4.6"/><path class="pointe" d="M9 10.2a2.4 2.4 0 0 1 2.4-2.7c1.2 0 1.8-.9 1.6-2.6 1.9.6 2.7 2 2.6 3.2a2.2 2.2 0 0 1-.6 2.1"/>',
+  caca: '<path d="M4.8 19.6h14.4a2.4 2.4 0 0 0 0-4.8H4.8a2.4 2.4 0 0 0 0 4.8z"/><path d="M6.9 14.8a2.3 2.3 0 0 1 0-4.6h10.2a2.3 2.3 0 0 1 0 4.6"/><path class="pointe" d="M9 10.2a2.4 2.4 0 0 1 2.4-2.7c1.2 0 1.8-.9 1.6-2.6 1.9.6 2.7 2 2.6 3.2a2.2 2.2 0 0 1-.6 2.1"/><path class="odeur odeur1" stroke-width="1.5" d="M5 8.8c-1.3-1.1 1.3-1.9 0-3s1.3-1.9 0-3"/><path class="odeur odeur2" stroke-width="1.5" d="M19.4 8.8c-1.3-1.1 1.3-1.9 0-3s1.3-1.9 0-3"/>',
   // gamelle + croquettes
-  repas: '<path d="M3 12h18l-1.6 5.6a2.6 2.6 0 0 1-2.5 1.9H7.1a2.6 2.6 0 0 1-2.5-1.9z"/><circle class="k k1" cx="8.5" cy="8.7" r="1.4"/><circle class="k k2" cx="12.3" cy="7.4" r="1.4"/><circle class="k k3" cx="15.8" cy="9" r="1.4"/>',
+  repas: '<path d="M3 13h18l-1.5 5a2.6 2.6 0 0 1-2.5 1.9H7a2.6 2.6 0 0 1-2.5-1.9z"/><circle class="k k1" cx="8.6" cy="10.6" r="1.3"/><circle class="k k2" cx="12.2" cy="9.7" r="1.3"/><circle class="k k3" cx="15.6" cy="10.8" r="1.3"/><path class="odeur odeur1" stroke-width="1.4" d="M10.2 7c-1.1-.9 1.1-1.5 0-2.4s1.1-1.5 0-2.4"/><path class="odeur odeur2" stroke-width="1.4" d="M14.4 7c-1.1-.9 1.1-1.5 0-2.4s1.1-1.5 0-2.4"/>',
   // lune + z
   sieste: '<path class="lune" d="M18.5 15.2A7.5 7.5 0 1 1 9 5a6 6 0 0 0 9.5 10.2z"/><path class="z" d="M15 3.5h3.5L15 7.5h3.5"/>',
   // empreinte de patte
