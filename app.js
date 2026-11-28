@@ -4,18 +4,18 @@ const PEOPLE = CFG.personnes || [];
 const RAPPEL = CFG.rappelPipiMinutes || 90;
 
 const TYPES = {
-  pipi:   { label: "Pipi",   color: "#E0A100", bg: "#FFF4D4", ink: "#6B4C00" },
-  caca:   { label: "Caca",   color: "#8A5A3C", bg: "#F3E8E0", ink: "#5A3820" },
-  repas:  { label: "Repas",  color: "#2E8B57", bg: "#E3F3EA", ink: "#1F5C3A" },
-  sieste: { label: "Sieste", color: "#6B4FC2", bg: "#ECE8FB", ink: "#3F2E8A" },
-  balade: { label: "Balade", color: "#C2552B", bg: "#FDE9DF", ink: "#7A2E10" }
+  pipi:   { label: "Pipi",   color: "#FFD23F", bg: "#FFD23F24", ink: "#FFE27A" },
+  caca:   { label: "Caca",   color: "#E39A62", bg: "#E39A6224", ink: "#F0B88C" },
+  repas:  { label: "Repas",  color: "#6FE3A5", bg: "#6FE3A524", ink: "#9CF0C2" },
+  sieste: { label: "Sieste", color: "#B7A0FF", bg: "#B7A0FF24", ink: "#D2C4FF" },
+  balade: { label: "Balade", color: "#FF5FA2", bg: "#FF5FA226", ink: "#FF9CC4" }
 };
 const FEMININ = { sieste: true, balade: true };
 const RDV = {
-  veto:       { label: "Vétérinaire", color: "#C23B5A" },
-  toiletteur: { label: "Toiletteur",  color: "#1F7F92" },
-  vaccin:     { label: "Vaccin",      color: "#2F5BC4" },
-  autre:      { label: "Autre",       color: "#5C6B62" }
+  veto:       { label: "Vétérinaire", color: "#FF5F7E" },
+  toiletteur: { label: "Toiletteur",  color: "#5FD3E6" },
+  vaccin:     { label: "Vaccin",      color: "#8FA8FF" },
+  autre:      { label: "Autre",       color: "#9B98A6" }
 };
 const MANGE = { tout: "tout mangé", moitie: "la moitié", rien: "rien mangé" };
 
@@ -70,7 +70,7 @@ const hhmm = (ms) => { const d = new Date(ms); return `${pad(d.getHours())}:${pa
 const hfr = (ms) => { const d = new Date(ms); return `${d.getHours()} h ${pad(d.getMinutes())}`; };
 const startOfDay = (ms) => { const d = new Date(ms); d.setHours(0, 0, 0, 0); return d.getTime(); };
 const DAY = 86400000;
-const person = (id) => PEOPLE.find((p) => p.id === id) || { initiale: "?", couleur: "#5C6B62", nom: "" };
+const person = (id) => PEOPLE.find((p) => p.id === id) || { initiale: "?", couleur: "#55525F", nom: "" };
 
 function dureeTxt(min) {
   min = Math.round(min);
@@ -173,6 +173,34 @@ function statTiles(st, isToday) {
   </div>`;
 }
 
+// Barres des pipis de la semaine en cours (lundi → dimanche), accidents en rose.
+function weekBars(today) {
+  const monday = today - ((new Date(today).getDay() + 6) % 7) * DAY;
+  const jours = ["L", "M", "M", "J", "V", "S", "D"];
+  const data = jours.map((d, i) => {
+    const d0 = monday + i * DAY;
+    if (d0 > today) return { d, future: true, n: 0, acc: 0 };
+    const st = dayStats(d0);
+    return { d, today: d0 === today, n: st.pipis.length, acc: st.pipiAcc };
+  });
+  const total = data.reduce((s, x) => s + x.n, 0), acc = data.reduce((s, x) => s + x.acc, 0);
+  const max = Math.max(6, ...data.map((x) => x.n));
+  return `<div class="row-between">
+      <h2 class="h2">Pipis de la semaine</h2>
+      <span class="vol-total">${total} <small>/ ${acc} ${plur(acc, "accident")}</small></span>
+    </div>
+    <div class="wbars" role="img" aria-label="${total} pipis cette semaine dont ${acc} accidents">
+      ${data.map((x) => `<div class="wbar${x.today ? " today" : ""}${x.future ? " future" : ""}">
+        <div class="track" style="height:${x.future ? 30 : Math.max(10, Math.round((x.n / max) * 64))}px">
+          ${x.n ? `<div class="fill" style="height:100%"></div>` : ""}
+          ${x.acc ? `<div class="acc" style="height:${Math.round((x.acc / x.n) * 100)}%"></div>` : ""}
+        </div>
+        <span class="d">${x.d}</span>
+      </div>`).join("")}
+    </div>
+    <div class="wlegend"><span><i style="background:var(--yellow)"></i>Dehors</span><span><i style="background:var(--pink)"></i>Accident</span></div>`;
+}
+
 // Moyennes par jour de la semaine en cours (jours terminés, lundi → hier).
 // Le lundi, on affiche la semaine dernière.
 function weekAverages(today) {
@@ -185,24 +213,25 @@ function weekAverages(today) {
     if (st.list.length || st.sleepMin) days.push(st);
   }
   if (!days.length) {
-    return `<div class="card"><h2 class="h2">${titre} · moyennes</h2>
+    return `<div class="card">${weekBars(today)}<h2 class="h2" style="margin-top:14px">${titre} · moyennes</h2>
       <p class="empty-msg" style="padding:12px 0 0;text-align:left">Les moyennes apparaîtront dès qu’une journée complète aura été notée.</p></div>`;
   }
   const n = days.length;
   const avg = (f) => days.reduce((s, st) => s + f(st), 0) / n;
   const items = [
     { k: "Pipis", c: TYPES.pipi.color, v: nf(avg((s) => s.pipis.length)) },
-    { k: "Accidents", c: "#C23B5A", v: nf(avg((s) => s.pipiAcc + s.cacaAcc)) },
+    { k: "Accidents", c: "#FF4F9A", v: nf(avg((s) => s.pipiAcc + s.cacaAcc)) },
     { k: "Cacas", c: TYPES.caca.color, v: nf(avg((s) => s.cacas.length)) },
     { k: "Repas", c: TYPES.repas.color, v: nf(avg((s) => s.repas.length)) },
     { k: "Balade", c: TYPES.balade.color, v: dureeTxt(avg((s) => s.baladeMin)) },
     { k: "Sommeil", c: TYPES.sieste.color, v: dureeTxt(avg((s) => s.sleepMin)) }
   ];
   return `<div class="card">
-    <div class="row-between">
-      <h2 class="h2">${titre} · moyenne par jour</h2>
+    ${weekBars(today)}
+    <div class="row-between" style="margin-top:14px">
+      <h2 class="h2">${titre} · moyenne / jour</h2>
     </div>
-    <span class="sync">Sur ${n} ${plur(n, "journée")} ${plur(n, "complète")} notée${n > 1 ? "s" : ""}</span>
+    <span class="hint">Sur ${n} ${plur(n, "journée")} ${plur(n, "complète")} notée${n > 1 ? "s" : ""}</span>
     <div class="avg">
       ${items.map((i) => `<div class="avg-i">
         <span class="k"><span class="dot" style="background:${i.c}"></span>${i.k}</span>
@@ -284,16 +313,23 @@ function renderJour(d0) {
     const dort = siesteEnCours();
     top = `
     <div class="head">
-      <div class="left">
-        <span class="eyebrow">${esc(dateTxt)}</span>
-        <h1 class="title">La journée de ${esc(CFG.nomChiot || "mon chiot")}</h1>
-        <span class="sync ${store.online ? "" : "off"}">${store.online ? "Synchronisé" : "Mode local (non partagé)"}</span>
-        <button type="button" class="share" id="share">
+      <div class="brand">
+        <div class="logo">
+          <div class="mark">${ICON_PAW}</div>
+          <div class="sub">
+            <h1 class="name">${esc(CFG.nomChiot || "Mon chiot")}</h1>
+            <span class="sync ${store.online ? "" : "off"}">${store.online ? "Synchronisé" : "Mode local (non partagé)"}</span>
+          </div>
+        </div>
+        <button type="button" class="share" id="share" aria-label="Partager le lien de l’app">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M16 6l-4-4-4 4M12 2v13"/></svg>
-          Partager le lien
+          Partager
         </button>
       </div>
-      <div class="avatar">${ICON_PAW}</div>
+      <div class="pills" aria-label="Ajout rapide">
+        ${Object.entries(TYPES).map(([id, v]) => `<a class="pill" href="#/ajouter/${id}"><i style="background:${v.color}"></i>${v.label}</a>`).join("")}
+      </div>
+      <span class="eyebrow">${esc(dateTxt)}</span>
     </div>
 
     ${dort ? sleepNowCard(dort) : ""}
@@ -304,7 +340,7 @@ function renderJour(d0) {
     </div>
 
     ${nextRdv ? `<a href="#/calendrier" class="card rdv-next">
-      <div class="ico" style="background:${RDV[nextRdv.rdvType]?.color || "#5C6B62"}">${ICON_CAL}</div>
+      <div class="ico" style="background:${RDV[nextRdv.rdvType]?.color || "#9B98A6"}">${ICON_CAL}</div>
       <div class="txt"><span class="lbl">Prochain rendez-vous</span>
         <span class="val">${esc(RDV[nextRdv.rdvType]?.label || "Rendez-vous")}${nextRdv.title ? " · " + esc(nextRdv.title) : ""}</span>
         <span class="lbl">${esc(dateLongue(nextRdv.time))} à ${hfr(nextRdv.time)}</span></div>
@@ -376,7 +412,7 @@ function renderHistorique() {
           </div>
           <div class="chips">
             ${chip(TYPES.pipi.color, `${st.pipis.length} ${plur(st.pipis.length, "pipi")}`)}
-            ${acc ? chip("#C23B5A", `${acc} ${plur(acc, "accident")}`) : ""}
+            ${acc ? chip("#FF4F9A", `${acc} ${plur(acc, "accident")}`) : ""}
             ${chip(TYPES.caca.color, `${st.cacas.length} ${plur(st.cacas.length, "caca")}`)}
             ${chip(TYPES.repas.color, `${st.repas.length} repas`)}
             ${st.baladeMin ? chip(TYPES.balade.color, `${dureeTxt(st.baladeMin)} de balade`) : ""}
@@ -748,11 +784,17 @@ function renderCalendrier() {
 /* ---------- Routeur ---------- */
 
 function route() {
-  const h = location.hash.replace(/^#\/?/, "");
+  let h = location.hash.replace(/^#\/?/, "");
   const jour = h.startsWith("jour/") ? Number(h.slice(5)) : null;
+  if (h.startsWith("ajouter/")) {
+    const ty = h.slice(8);
+    if (TYPES[ty]) form.type = ty;
+    history.replaceState(null, "", "#/ajouter");
+    h = "ajouter";
+  }
   const tab = jour ? "historique" : ["ajouter", "historique", "calendrier"].includes(h) ? h : "accueil";
   document.querySelectorAll(".tabbar a").forEach((a) => a.classList.toggle("on", a.dataset.tab === tab));
-  $("#fab").classList.toggle("hidden", tab === "ajouter" || tab === "calendrier");
+  $("#fab").classList.toggle("on", tab === "ajouter");
   if (tab === "ajouter") renderAjouter();
   else if (tab === "calendrier") renderCalendrier();
   else if (jour) renderJour(startOfDay(jour));
