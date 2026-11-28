@@ -4,19 +4,52 @@ const PEOPLE = CFG.personnes || [];
 const RAPPEL = CFG.rappelPipiMinutes || 90;
 
 const TYPES = {
-  pipi:   { label: "Pipi",   color: "#FFD23F", bg: "#FFD23F24", ink: "#FFE27A" },
-  caca:   { label: "Caca",   color: "#E39A62", bg: "#E39A6224", ink: "#F0B88C" },
-  repas:  { label: "Repas",  color: "#6FE3A5", bg: "#6FE3A524", ink: "#9CF0C2" },
-  sieste: { label: "Sieste", color: "#B7A0FF", bg: "#B7A0FF24", ink: "#D2C4FF" },
-  balade: { label: "Balade", color: "#FF5FA2", bg: "#FF5FA226", ink: "#FF9CC4" }
+  pipi:   { label: "Pipi",   color: "var(--pipi)",   bg: "var(--pipi-bg)",   ink: "var(--pipi-ink)" },
+  caca:   { label: "Caca",   color: "var(--caca)",   bg: "var(--caca-bg)",   ink: "var(--caca-ink)" },
+  repas:  { label: "Repas",  color: "var(--repas)",  bg: "var(--repas-bg)",  ink: "var(--repas-ink)" },
+  sieste: { label: "Sieste", color: "var(--sieste)", bg: "var(--sieste-bg)", ink: "var(--sieste-ink)" },
+  balade: { label: "Balade", color: "var(--balade)", bg: "var(--balade-bg)", ink: "var(--balade-ink)" }
 };
 const FEMININ = { sieste: true, balade: true };
 const RDV = {
-  veto:       { label: "Vétérinaire", color: "#FF5F7E" },
-  toiletteur: { label: "Toiletteur",  color: "#5FD3E6" },
-  vaccin:     { label: "Vaccin",      color: "#8FA8FF" },
-  autre:      { label: "Autre",       color: "#9B98A6" }
+  veto:       { label: "Vétérinaire", color: "#FF5F7E", bg: "#FF5F7E29" },
+  toiletteur: { label: "Toiletteur",  color: "#5FD3E6", bg: "#5FD3E629" },
+  vaccin:     { label: "Vaccin",      color: "#8FA8FF", bg: "#8FA8FF29" },
+  autre:      { label: "Autre",       color: "#9B98A6", bg: "#9B98A629" }
 };
+/* ---------- Icônes (24×24, trait) ---------- */
+const ICONS = {
+  // goutte
+  pipi: '<path d="M12 3.2c3.2 4.1 6.2 7.4 6.2 11a6.2 6.2 0 0 1-12.4 0c0-3.6 3-6.9 6.2-11z"/><path d="M9.3 14.6a2.8 2.8 0 0 0 2.4 2.6"/>',
+  // petit tas en trois étages
+  caca: '<path d="M4.8 19.6h14.4a2.4 2.4 0 0 0 0-4.8H4.8a2.4 2.4 0 0 0 0 4.8z"/><path d="M6.9 14.8a2.3 2.3 0 0 1 0-4.6h10.2a2.3 2.3 0 0 1 0 4.6"/><path d="M9 10.2a2.4 2.4 0 0 1 2.4-2.7c1.2 0 1.8-.9 1.6-2.6 1.9.6 2.7 2 2.6 3.2a2.2 2.2 0 0 1-.6 2.1"/>',
+  // gamelle + croquettes
+  repas: '<path d="M3 12h18l-1.6 5.6a2.6 2.6 0 0 1-2.5 1.9H7.1a2.6 2.6 0 0 1-2.5-1.9z"/><circle cx="8.5" cy="8.7" r="1.4"/><circle cx="12.3" cy="7.4" r="1.4"/><circle cx="15.8" cy="9" r="1.4"/>',
+  // lune + z
+  sieste: '<path d="M18.5 15.2A7.5 7.5 0 1 1 9 5a6 6 0 0 0 9.5 10.2z"/><path d="M15 3.5h3.5L15 7.5h3.5"/>',
+  // empreinte de patte
+  balade: '<circle cx="6.6" cy="10" r="1.7"/><circle cx="10" cy="6.4" r="1.7"/><circle cx="14" cy="6.4" r="1.7"/><circle cx="17.4" cy="10" r="1.7"/><path d="M12 11.6c2.3 0 5 3.2 5 5.3 0 1.6-1.2 2.5-2.6 2.5-1 0-1.6-.6-2.4-.6s-1.4.6-2.4.6C8.2 19.4 7 18.5 7 16.9c0-2.1 2.7-5.3 5-5.3z"/>',
+  // goutte barrée (accident)
+  accident: '<path d="M12 3.2c3.2 4.1 6.2 7.4 6.2 11a6.2 6.2 0 0 1-12.4 0c0-3.6 3-6.9 6.2-11z"/><path d="M4 4l16 16"/>',
+  // stéthoscope
+  veto: '<path d="M6 3v5a4 4 0 0 0 8 0V3"/><path d="M10 12v2.5a4.5 4.5 0 0 0 9 0V12"/><circle cx="19" cy="10" r="2"/>',
+  // ciseaux
+  toiletteur: '<circle cx="6" cy="17" r="2.6"/><circle cx="6" cy="7" r="2.6"/><path d="M8.2 8.4 20 17M8.2 15.6 20 7"/>',
+  // seringue
+  vaccin: '<path d="M14.5 3.5l6 6M17.5 6.5l-9.8 9.8-3.6.6.6-3.6 9.8-9.8M10.5 9.5l2 2M8.5 11.5l2 2M3.5 20.5l3-3"/>',
+  // calendrier
+  autre: '<rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/>'
+};
+const ACCIDENT = { label: "Accident", color: "var(--pink)", bg: "var(--pink-soft)" };
+const svgIcon = (k, size = 22) =>
+  `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[k] || ICONS.autre}</svg>`;
+// Icône dans une pastille teintée. taille : xs (pastilles), sm (stats), md (liste), lg (boutons de type)
+function tIcon(k, taille = "md") {
+  const t = TYPES[k] || RDV[k] || (k === "accident" ? ACCIDENT : RDV.autre);
+  const px = { xs: 16, sm: 16, md: 20, lg: 24 }[taille];
+  return `<span class="ti ti-${taille}" style="color:${t.color};background:${t.bg || "transparent"}">${svgIcon(k, px)}</span>`;
+}
+
 const MANGE = { tout: "tout mangé", moitie: "la moitié", rien: "rien mangé" };
 
 /* ---------- Stockage (Firebase si configuré, sinon local) ---------- */
@@ -125,7 +158,7 @@ function eventRow(ev, withDelete) {
   const p = person(ev.who);
   return `<div class="ev">
     <span class="t">${hhmm(ev.time)}</span>
-    <span class="dot" style="background:${t.color}"></span>
+    ${tIcon(ev.type, "md")}
     <div class="m"><b>${t.label}</b><span>${esc(detail(ev))}</span></div>
     <span class="who" style="background:${p.couleur}" title="${esc(p.nom)}">${esc(p.initiale)}</span>
     ${withDelete ? `<button class="del" data-del="${esc(ev.id)}" aria-label="Supprimer ${t.label} de ${hhmm(ev.time)}">${ICON_TRASH}</button>` : ""}
@@ -157,17 +190,17 @@ function dayStats(d0) {
 function statTiles(st, isToday) {
   const rien = (f) => isToday ? `${f} aujourd’hui` : `${f} ce jour-là`;
   const tiles = [
-    { k: "Pipis", c: TYPES.pipi.color, v: st.pipis.length, s: `${st.pipis.length - st.pipiAcc} dehors · ${st.pipiAcc} ${plur(st.pipiAcc, "accident")}` },
-    { k: "Cacas", c: TYPES.caca.color, v: st.cacas.length, s: st.cacas[0] ? `dernier à ${hfr(st.cacas[0].time)}` : rien("aucun") },
-    { k: "Repas", c: TYPES.repas.color, v: st.repas.length, s: st.repas[0] ? `dernier à ${hfr(st.repas[0].time)}` : rien("aucun") },
-    { k: "Sommeil", c: TYPES.sieste.color, v: st.sleepMin ? dureeTxt(st.sleepMin) : "0 h", s: `${st.nbSiestes} ${plur(st.nbSiestes, "sieste")}` },
-    { k: "Balades", c: TYPES.balade.color, wide: true,
+    { k: "Pipis", c: "pipi", v: st.pipis.length, s: `${st.pipis.length - st.pipiAcc} dehors · ${st.pipiAcc} ${plur(st.pipiAcc, "accident")}` },
+    { k: "Cacas", c: "caca", v: st.cacas.length, s: st.cacas[0] ? `dernier à ${hfr(st.cacas[0].time)}` : rien("aucun") },
+    { k: "Repas", c: "repas", v: st.repas.length, s: st.repas[0] ? `dernier à ${hfr(st.repas[0].time)}` : rien("aucun") },
+    { k: "Sommeil", c: "sieste", v: st.sleepMin ? dureeTxt(st.sleepMin) : "0 h", s: `${st.nbSiestes} ${plur(st.nbSiestes, "sieste")}` },
+    { k: "Balades", c: "balade", wide: true,
       v: st.balades.length ? dureeTxt(st.baladeMin) : "0 min",
       s: st.balades.length ? `${st.balades.length} ${plur(st.balades.length, "balade")} · dernière à ${hfr(st.balades[0].time)}` : rien("aucune") }
   ];
   return `<div class="stats">
     ${tiles.map((s) => `<div class="card stat${s.wide ? " wide" : ""}">
-      <div class="k"><span class="dot" style="background:${s.c}"></span>${s.k}</div>
+      <div class="k">${tIcon(s.c, "sm")}${s.k}</div>
       <span class="v">${s.v}</span><span class="s">${s.s}</span>
     </div>`).join("")}
   </div>`;
@@ -219,12 +252,12 @@ function weekAverages(today) {
   const n = days.length;
   const avg = (f) => days.reduce((s, st) => s + f(st), 0) / n;
   const items = [
-    { k: "Pipis", c: TYPES.pipi.color, v: nf(avg((s) => s.pipis.length)) },
-    { k: "Accidents", c: "#FF4F9A", v: nf(avg((s) => s.pipiAcc + s.cacaAcc)) },
-    { k: "Cacas", c: TYPES.caca.color, v: nf(avg((s) => s.cacas.length)) },
-    { k: "Repas", c: TYPES.repas.color, v: nf(avg((s) => s.repas.length)) },
-    { k: "Balade", c: TYPES.balade.color, v: dureeTxt(avg((s) => s.baladeMin)) },
-    { k: "Sommeil", c: TYPES.sieste.color, v: dureeTxt(avg((s) => s.sleepMin)) }
+    { k: "Pipis", c: "pipi", v: nf(avg((s) => s.pipis.length)) },
+    { k: "Accidents", c: "accident", v: nf(avg((s) => s.pipiAcc + s.cacaAcc)) },
+    { k: "Cacas", c: "caca", v: nf(avg((s) => s.cacas.length)) },
+    { k: "Repas", c: "repas", v: nf(avg((s) => s.repas.length)) },
+    { k: "Balade", c: "balade", v: dureeTxt(avg((s) => s.baladeMin)) },
+    { k: "Sommeil", c: "sieste", v: dureeTxt(avg((s) => s.sleepMin)) }
   ];
   return `<div class="card">
     ${weekBars(today)}
@@ -234,7 +267,7 @@ function weekAverages(today) {
     <span class="hint">Sur ${n} ${plur(n, "journée")} ${plur(n, "complète")} notée${n > 1 ? "s" : ""}</span>
     <div class="avg">
       ${items.map((i) => `<div class="avg-i">
-        <span class="k"><span class="dot" style="background:${i.c}"></span>${i.k}</span>
+        <span class="k">${tIcon(i.c, "xs")}${i.k}</span>
         <span class="v">${i.v}</span>
       </div>`).join("")}
     </div>
@@ -321,13 +354,19 @@ function renderJour(d0) {
             <span class="sync ${store.online ? "" : "off"}">${store.online ? "Synchronisé" : "Mode local (non partagé)"}</span>
           </div>
         </div>
-        <button type="button" class="share" id="share" aria-label="Partager le lien de l’app">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M16 6l-4-4-4 4M12 2v13"/></svg>
-          Partager
+        <div style="display:flex;gap:8px">
+        <button type="button" class="share icon-only" id="theme" aria-label="${theme() === "light" ? "Passer en thème sombre" : "Passer en thème clair"}">
+          ${theme() === "light"
+            ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>'
+            : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></svg>'}
         </button>
+        <button type="button" class="share icon-only" id="share" aria-label="Partager le lien de l’app">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M16 6l-4-4-4 4M12 2v13"/></svg>
+        </button>
+        </div>
       </div>
       <div class="pills" aria-label="Ajout rapide">
-        ${Object.entries(TYPES).map(([id, v]) => `<a class="pill" href="#/ajouter/${id}"><i style="background:${v.color}"></i>${v.label}</a>`).join("")}
+        ${Object.entries(TYPES).map(([id, v]) => `<a class="pill" href="#/ajouter/${id}">${tIcon(id, "xs")}${v.label}</a>`).join("")}
       </div>
       <span class="eyebrow">${esc(dateTxt)}</span>
     </div>
@@ -335,12 +374,12 @@ function renderJour(d0) {
     ${dort ? sleepNowCard(dort) : ""}
 
     <div class="card last">
-      <div class="ico">${ICON_CLOCK}</div>
+      <div class="ico">${svgIcon("pipi", 24)}</div>
       <div class="txt"><span class="lbl">Dernier pipi</span>${lastHtml}
     </div>
 
     ${nextRdv ? `<a href="#/calendrier" class="card rdv-next">
-      <div class="ico" style="background:${RDV[nextRdv.rdvType]?.color || "#9B98A6"}">${ICON_CAL}</div>
+      <div class="ico" style="background:${RDV[nextRdv.rdvType]?.color || "#9B98A6"};color:#0A0A0F">${svgIcon(nextRdv.rdvType in RDV ? nextRdv.rdvType : "autre", 24)}</div>
       <div class="txt"><span class="lbl">Prochain rendez-vous</span>
         <span class="val">${esc(RDV[nextRdv.rdvType]?.label || "Rendez-vous")}${nextRdv.title ? " · " + esc(nextRdv.title) : ""}</span>
         <span class="lbl">${esc(dateLongue(nextRdv.time))} à ${hfr(nextRdv.time)}</span></div>
@@ -374,6 +413,7 @@ function renderJour(d0) {
     </div>`;
 
   $("#share")?.addEventListener("click", partagerLien);
+  $("#theme")?.addEventListener("click", () => { setTheme(theme() === "light" ? "dark" : "light"); renderAccueil(); });
   bindWake();
   bindDelete();
 }
@@ -397,7 +437,7 @@ function renderHistorique() {
   const days = [...new Set(events.map((e) => startOfDay(e.time)))].filter((d) => d <= today).sort((a, b) => b - a).slice(0, 120);
   const label = (k) => k === today ? "Aujourd’hui" : k === today - DAY ? "Hier" :
     new Date(k).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
-  const chip = (c, txt) => `<span class="chip"><i style="background:${c}"></i>${txt}</span>`;
+  const chip = (k, txt) => `<span class="chip">${tIcon(k, "xs")}${txt}</span>`;
 
   $("#view").innerHTML = `
     <h1 class="title">Jours passés</h1>
@@ -411,12 +451,12 @@ function renderHistorique() {
             <span class="chev" aria-hidden="true">›</span>
           </div>
           <div class="chips">
-            ${chip(TYPES.pipi.color, `${st.pipis.length} ${plur(st.pipis.length, "pipi")}`)}
-            ${acc ? chip("#FF4F9A", `${acc} ${plur(acc, "accident")}`) : ""}
-            ${chip(TYPES.caca.color, `${st.cacas.length} ${plur(st.cacas.length, "caca")}`)}
-            ${chip(TYPES.repas.color, `${st.repas.length} repas`)}
-            ${st.baladeMin ? chip(TYPES.balade.color, `${dureeTxt(st.baladeMin)} de balade`) : ""}
-            ${st.sleepMin ? chip(TYPES.sieste.color, `${dureeTxt(st.sleepMin)} de sommeil`) : ""}
+            ${chip("pipi", `${st.pipis.length} ${plur(st.pipis.length, "pipi")}`)}
+            ${acc ? chip("accident", `${acc} ${plur(acc, "accident")}`) : ""}
+            ${chip("caca", `${st.cacas.length} ${plur(st.cacas.length, "caca")}`)}
+            ${chip("repas", `${st.repas.length} repas`)}
+            ${st.baladeMin ? chip("balade", `${dureeTxt(st.baladeMin)} de balade`) : ""}
+            ${st.sleepMin ? chip("sieste", `${dureeTxt(st.sleepMin)} de sommeil`) : ""}
           </div>
         </a>`;
       }).join("") : `<div class="empty-msg">Aucune journée notée pour l’instant.</div>`}
@@ -458,7 +498,7 @@ function renderAjouter() {
             const on = id === t;
             return `<button type="button" class="type" data-type="${id}" aria-pressed="${pressed(on)}"
               style="${on ? `border-color:${v.color};background:${v.bg};color:${v.ink}` : ""}">
-              <span class="sq" style="background:${v.color}"></span>${v.label}</button>`;
+              ${svgIcon(id, 26)}${v.label}</button>`;
           }).join("")}
         </div>
       </div>
@@ -634,7 +674,7 @@ function rdvRow(r) {
   const p = person(r.who);
   const sub = [dateLongue(r.time) + " à " + hfr(r.time), r.note].filter(Boolean).join(" · ");
   return `<div class="ev">
-    <span class="dot" style="background:${t.color}"></span>
+    ${tIcon(r.rdvType in RDV ? r.rdvType : "autre", "md")}
     <div class="m"><b>${esc(t.label)}${r.title ? " · " + esc(r.title) : ""}</b><span>${esc(sub)}</span></div>
     <span class="who" style="background:${p.couleur}" title="${esc(p.nom)}">${esc(p.initiale)}</span>
     <button class="del" data-delrdv="${esc(r.id)}" aria-label="Supprimer ce rendez-vous">${ICON_TRASH}</button>
@@ -683,7 +723,7 @@ function renderCalendrier() {
         <span class="eyebrow">Type</span>
         <div class="choices">
           ${Object.entries(RDV).map(([k, v]) => `<button type="button" class="choice" data-rdvtype="${k}" aria-pressed="${pressed(cal.rdvType === k)}">
-            <span class="dot" style="background:${v.color}"></span>${v.label}</button>`).join("")}
+            <span style="color:${v.color};display:flex">${svgIcon(k, 20)}</span>${v.label}</button>`).join("")}
         </div>
       </div>
       <div class="grid2">
@@ -802,6 +842,14 @@ function route() {
   else renderAccueil();
   if (route.lastHash !== h) window.scrollTo(0, 0);
   route.lastTab = tab; route.lastHash = h;
+}
+
+/* ---------- Thème clair / sombre (mémorisé sur chaque téléphone) ---------- */
+function theme() { return document.documentElement.dataset.theme === "light" ? "light" : "dark"; }
+function setTheme(t) {
+  document.documentElement.dataset.theme = t;
+  try { localStorage.setItem("chiot-theme", t); } catch {}
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", t === "light" ? "#F6F3F1" : "#0A0A0F");
 }
 
 /* ---------- Mise à jour automatique ----------
