@@ -384,13 +384,13 @@ function renderJour(d0) {
           </div>
         </div>
         <div style="display:flex;gap:8px">
+        <button type="button" class="share icon-only" id="aide" aria-expanded="${aideOuverte}" aria-label="Aide et guide">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.2 9a2.9 2.9 0 0 1 5.6 1c0 2-2.8 2.4-2.8 4.2"/><circle cx="12" cy="18" r=".6" fill="currentColor"/></svg>
+        </button>
         <button type="button" class="share icon-only" id="theme" aria-label="${theme() === "light" ? "Passer en thème sombre" : "Passer en thème clair"}">
           ${theme() === "light"
             ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>'
             : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></svg>'}
-        </button>
-        <button type="button" class="share icon-only" id="share" aria-label="Partager le lien de l’app">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M16 6l-4-4-4 4M12 2v13"/></svg>
         </button>
         </div>
       </div>
@@ -399,6 +399,18 @@ function renderJour(d0) {
       </div>
       <span class="eyebrow">${esc(dateTxt)}</span>
     </div>
+
+    ${aideOuverte ? `<div class="card mood-picker aide-menu">
+      <span class="eyebrow">Aide</span>
+      <button type="button" class="save" id="gRevoir">Revoir le guide</button>
+      <button type="button" class="btn-soft" id="share" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M16 6l-4-4-4 4M12 2v13"/></svg>
+        Partager le lien de l’app</button>
+      <label class="switch-row">
+        <span><b>Guide automatique</b><small>Se lance à la première ouverture et après les grosses mises à jour</small></span>
+        <input type="checkbox" id="gAuto" class="switch" ${guideOff() ? "" : "checked"}>
+      </label>
+    </div>` : ""}
 
     ${humeurOuverte ? `<div class="card mood-picker" role="group" aria-label="Humeur du jour">
       <span class="eyebrow">Comment va ${esc(CFG.nomChiot || "le chiot")} aujourd’hui ?</span>
@@ -453,7 +465,13 @@ function renderJour(d0) {
     </div>`;
 
   $("#share")?.addEventListener("click", partagerLien);
-  $("#mood")?.addEventListener("click", () => { humeurOuverte = !humeurOuverte; renderAccueil(); });
+  $("#mood")?.addEventListener("click", () => { humeurOuverte = !humeurOuverte; aideOuverte = false; renderAccueil(); });
+  $("#aide")?.addEventListener("click", () => { aideOuverte = !aideOuverte; humeurOuverte = false; renderAccueil(); });
+  $("#gRevoir")?.addEventListener("click", lancerGuide);
+  $("#gAuto")?.addEventListener("change", (e) => {
+    setGuideOff(!e.target.checked);
+    toast(e.target.checked ? "Guide automatique réactivé" : "Guide automatique désactivé");
+  });
   $("#view").querySelectorAll("[data-mood]").forEach((b) => b.addEventListener("click", async () => {
     const r = b.getBoundingClientRect();
     const actuelle = humeurDu(startOfDay(Date.now()));
@@ -1068,6 +1086,149 @@ function renderMots() {
   });
 }
 
+/* ---------- Guide de découverte ----------
+   Met en lumière chaque élément de l'accueil avec une bulle d'explication.
+   Se lance seul à la première ouverture et après les grosses mises à jour (GUIDE_V),
+   sauf s'il a été désactivé depuis le bouton « ? ». */
+const GUIDE_V = "2";
+const guideOff = () => { try { return localStorage.getItem("chiot-guide-off") === "1"; } catch { return false; } };
+const setGuideOff = (off) => { try { off ? localStorage.setItem("chiot-guide-off", "1") : localStorage.removeItem("chiot-guide-off"); } catch {} };
+const marquerGuideVu = () => { try { localStorage.setItem("chiot-guide-vu", GUIDE_V); } catch {} };
+const guideDejaVu = () => { try { return localStorage.getItem("chiot-guide-vu") === GUIDE_V; } catch { return true; } };
+let aideOuverte = false;
+
+function etapesGuide() {
+  const nom = CFG.nomChiot || "votre chiot";
+  return [
+    { titre: `Bienvenue dans le journal ${/^[aeiouyhéèêàâîôû]/i.test(nom) ? "d’" : "de "}${nom} 🐾`, texte: "Petit tour rapide de l’app : une minute, promis. Vous pourrez le revoir à tout moment avec le bouton « ? » en haut." },
+    { sel: "#mood", titre: "L’humeur du jour", texte: `Touchez la bulle pour dire comment va ${nom} aujourd’hui : joueuse, câline, fatiguée… C’est partagé entre vous deux.` },
+    { sel: ".pills", titre: "Ajout rapide", texte: "Pipi, caca, repas, sieste, balade : touchez une pastille pour noter en deux secondes." },
+    { sel: "#fab", titre: "Le gros +", texte: "Ouvre le formulaire complet : heure, dehors ou accident, quantité, durée, qui note, petite note…" },
+    { sel: ".sleep-now", titre: "Sieste en cours", texte: `${nom} dort ! Le compteur tourne ; touchez « Elle s’est réveillée » au réveil.` },
+    { sel: ".postit-apercu", titre: "Le dernier post-it", texte: "Le dernier mot laissé s’affiche ici. Touchez-le pour voir tous les post-it." },
+    { sel: ".last", titre: "Dernier pipi", texte: "Depuis combien de temps, avec un rappel « Sortir bientôt » quand ça fait longtemps." },
+    { sel: ".stats", titre: "La journée en chiffres", texte: "Pipis (dehors / accidents), cacas, repas, sommeil et balades du jour." },
+    { sel: ".wbars", carte: true, titre: "La semaine", texte: "Les pipis jour par jour (en rose : les accidents) et les moyennes par jour de la semaine." },
+    { sel: ".ev.editable", titre: "Détail de la journée", texte: "Toutes les entrées du jour. Touchez une ligne pour la corriger ou la supprimer." },
+    { sel: '.tabbar a[data-tab="calendrier"]', titre: "Calendrier", texte: "Vétérinaire, toiletteur, vaccins… Touchez un rendez-vous pour le modifier." },
+    { sel: '.tabbar a[data-tab="mots"]', titre: "Mots", texte: "Laissez-vous des post-it. Une pastille rose signale les nouveaux mots de l’autre." },
+    { sel: '.tabbar a[data-tab="historique"]', titre: "Historique", texte: "Chaque journée passée avec ses stats. Touchez un jour pour son détail complet." },
+    { sel: "#theme", titre: "Clair ou sombre", texte: "Change le thème de l’app. Le choix est gardé sur chaque téléphone." },
+    { sel: "#aide", titre: "Et voilà !", texte: "Touchez « ? » pour revoir le guide, le désactiver / réactiver, ou partager le lien de l’app.", fin: true }
+  ];
+}
+
+const guide = { i: 0, etapes: [], el: null };
+
+function lancerGuide() {
+  if (!/^#?\/?$/.test(location.hash)) { location.hash = "#/"; setTimeout(lancerGuide, 350); return; }
+  aideOuverte = false; humeurOuverte = false;
+  renderAccueil();
+  // On garde seulement les étapes dont l'élément est à l'écran
+  guide.etapes = etapesGuide().filter((e) => !e.sel || document.querySelector(e.sel));
+  guide.i = 0;
+  if (!guide.el) {
+    guide.el = document.createElement("div");
+    guide.el.className = "guide";
+    guide.el.innerHTML = `<div class="guide-voile"></div><div class="guide-spot"></div>
+      <div class="guide-bulle" role="dialog" aria-modal="true" aria-labelledby="guide-titre"></div>`;
+    document.body.appendChild(guide.el);
+    window.addEventListener("resize", placerGuide);
+    window.addEventListener("scroll", placerGuide, { passive: true });
+    document.addEventListener("keydown", (e) => {
+      if (!guide.el?.classList.contains("on")) return;
+      if (e.key === "Escape") fermerGuide();
+      if (e.key === "ArrowRight") etapeGuide(1);
+      if (e.key === "ArrowLeft") etapeGuide(-1);
+    });
+  }
+  guide.el.classList.add("on");
+  afficherEtape();
+}
+
+function cibleGuide(e) {
+  const el = e.sel && document.querySelector(e.sel);
+  return el && e.carte ? el.closest(".card") : el;
+}
+
+function afficherEtape() {
+  const e = guide.etapes[guide.i];
+  const n = guide.etapes.length;
+  const bulle = guide.el.querySelector(".guide-bulle");
+  bulle.innerHTML = `
+    <div class="guide-points" aria-hidden="true">${guide.etapes.map((_, k) => `<i class="${k === guide.i ? "on" : ""}"></i>`).join("")}</div>
+    <h2 id="guide-titre" class="h2">${esc(e.titre)}</h2>
+    <p>${esc(e.texte)}</p>
+    <div class="guide-actions">
+      ${e.fin ? "" : `<button type="button" class="guide-passer" id="gPasser">Passer</button>`}
+      <span style="flex:1"></span>
+      ${guide.i > 0 ? `<button type="button" class="btn-soft" id="gPrec">Précédent</button>` : ""}
+      <button type="button" class="save" id="gSuiv">${e.fin ? "C’est parti !" : guide.i === 0 ? "Suivez le guide" : "Suivant"}</button>
+    </div>
+    ${guide.i === 0 ? `<button type="button" class="guide-off" id="gOff">Ne plus me proposer le guide</button>` : ""}
+    <span class="sr" aria-live="polite">Étape ${guide.i + 1} sur ${n}</span>`;
+  bulle.querySelector("#gSuiv").addEventListener("click", () => etapeGuide(1));
+  bulle.querySelector("#gPrec")?.addEventListener("click", () => etapeGuide(-1));
+  bulle.querySelector("#gPasser")?.addEventListener("click", fermerGuide);
+  bulle.querySelector("#gOff")?.addEventListener("click", () => { setGuideOff(true); fermerGuide(); toast("Guide désactivé (réactivable avec « ? »)"); });
+  const cible = cibleGuide(e);
+  if (cible) {
+    const r = cible.getBoundingClientRect();
+    const fixe = getComputedStyle(cible).position === "fixed" || cible.closest(".dock");
+    if (!fixe && (r.top < 90 || r.bottom > innerHeight - 260)) {
+      window.scrollTo({ top: window.scrollY + r.top - Math.max(100, innerHeight * 0.22), behavior: mouvementReduit() ? "auto" : "smooth" });
+    }
+  }
+  placerGuide();
+  setTimeout(placerGuide, 380);
+  bulle.querySelector("#gSuiv").focus({ preventScroll: true });
+}
+
+function placerGuide() {
+  if (!guide.el?.classList.contains("on")) return;
+  const e = guide.etapes[guide.i];
+  const spot = guide.el.querySelector(".guide-spot");
+  const bulle = guide.el.querySelector(".guide-bulle");
+  const cible = cibleGuide(e);
+  const W = innerWidth, H = innerHeight;
+  const bw = Math.min(360, W - 32);
+  bulle.style.width = bw + "px";
+  if (!cible) {
+    spot.style.cssText = `left:${W / 2}px;top:${H / 2}px;width:0;height:0;border-radius:50%`;
+    bulle.style.left = (W - bw) / 2 + "px";
+    bulle.style.top = Math.max(24, (H - bulle.offsetHeight) / 2) + "px";
+    return;
+  }
+  const r = cible.getBoundingClientRect();
+  const pad = 8;
+  const rad = getComputedStyle(cible).borderRadius || "18px";
+  spot.style.cssText = `left:${r.left - pad}px;top:${r.top - pad}px;width:${r.width + pad * 2}px;height:${r.height + pad * 2}px;border-radius:${parseFloat(rad) > 60 ? "999px" : `calc(${rad} + ${pad}px)`}`;
+  const bh = bulle.offsetHeight;
+  const enDessous = r.top + r.height / 2 < H / 2;
+  let top = enDessous ? r.bottom + pad + 14 : r.top - pad - 14 - bh;
+  top = Math.min(Math.max(16, top), H - bh - 16);
+  let left = r.left + r.width / 2 - bw / 2;
+  left = Math.min(Math.max(16, left), W - bw - 16);
+  bulle.style.left = left + "px";
+  bulle.style.top = top + "px";
+  bulle.dataset.fleche = enDessous ? "haut" : "bas";
+  bulle.style.setProperty("--fx", `${Math.min(Math.max(24, r.left + r.width / 2 - left), bw - 24)}px`);
+}
+
+function etapeGuide(d) {
+  const j = guide.i + d;
+  if (j >= guide.etapes.length) { fermerGuide(); eclat(innerWidth / 2, innerHeight / 2, "patte"); return; }
+  if (j < 0) return;
+  guide.i = j;
+  afficherEtape();
+}
+
+function fermerGuide() {
+  guide.el?.classList.remove("on");
+  marquerGuideVu();
+  window.scrollTo({ top: 0, behavior: mouvementReduit() ? "auto" : "smooth" });
+}
+
 /* ---------- Routeur ---------- */
 
 function route() {
@@ -1258,6 +1419,7 @@ async function start() {
   window.addEventListener("hashchange", () => coupDePatte(route));
   route();
   verifierMiseAJour();
+  if (!guideOff() && !guideDejaVu()) setTimeout(lancerGuide, 900);
   // Rafraîchit "il y a X min" chaque minute
   setInterval(() => { if (route.lastTab === "accueil" && !enSaisie()) renderAccueil(); }, 60000);
 }
