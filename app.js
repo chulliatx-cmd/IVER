@@ -845,54 +845,60 @@ function route() {
 }
 
 /* ---------- Transition « coup de patte » ----------
-   Une vague part du doigt, une patte se tamponne au centre,
-   puis la vague se resserre dans la patte et dévoile la nouvelle page. */
+   La nouvelle page s'affiche tout de suite (fondu rapide) ; au point touché,
+   une patte se tamponne et des gouttes giclent autour. Rien ne bloque l'écran. */
 let dernierTap = null;
-document.addEventListener("pointerdown", (e) => { dernierTap = { x: e.clientX, y: e.clientY }; }, { capture: true, passive: true });
-let enTransition = false;
-const attendre = (ms) => new Promise((r) => setTimeout(r, ms));
+document.addEventListener("pointerdown", (e) => { dernierTap = { x: e.clientX, y: e.clientY, t: Date.now() }; }, { capture: true, passive: true });
 
-async function coupDePatte(afficher) {
-  const voile = $("#veil");
+function coupDePatte(afficher) {
+  afficher();
   const reduit = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
-  if (!voile || !voile.animate || reduit || enTransition) { afficher(); return; }
-  enTransition = true;
-  try {
-    const w = innerWidth, h = innerHeight;
-    const { x, y } = dernierTap || { x: w - 50, y: h - 50 };
-    dernierTap = null;
-    voile.classList.toggle("y", /ajouter/.test(location.hash));
-    if (!voile.firstChild) voile.innerHTML = `<svg class="veil-paw" viewBox="0 0 24 24" aria-hidden="true">${ICONS.balade}</svg>`;
-    const patte = voile.firstChild;
-    voile.style.display = "flex";
-    const rIn = Math.hypot(Math.max(x, w - x), Math.max(y, h - y));
-    await voile.animate(
-      { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${rIn}px at ${x}px ${y}px)`] },
-      { duration: 210, easing: "cubic-bezier(.7,0,.3,1)", fill: "forwards" }).finished;
-    afficher();
-    window.scrollTo(0, 0);
-    const tampon = patte.animate(
-      [{ transform: "scale(.3) rotate(-30deg)", opacity: 0 },
-       { transform: "scale(1.18) rotate(-10deg)", opacity: 1, offset: .65 },
-       { transform: "scale(1) rotate(-10deg)", opacity: 1 }],
-      { duration: 220, easing: "ease-out", fill: "forwards" });
-    await attendre(150);
-    const cx = w / 2, cy = h / 2, rOut = Math.hypot(cx, cy);
-    patte.animate([{ transform: "scale(1) rotate(-10deg)" }, { transform: "scale(.2) rotate(10deg)", opacity: 0 }],
-      { duration: 280, easing: "cubic-bezier(.6,0,.2,1)", fill: "forwards" });
-    await voile.animate(
-      { clipPath: [`circle(${rOut}px at ${cx}px ${cy}px)`, `circle(0px at ${cx}px ${cy}px)`] },
-      { duration: 280, easing: "cubic-bezier(.6,0,.2,1)", fill: "forwards" }).finished;
-    tampon.cancel();
-    voile.getAnimations().forEach((a) => a.cancel());
-    patte.getAnimations().forEach((a) => a.cancel());
-  } catch (err) {
-    console.error(err);
-    afficher();
-  } finally {
-    voile.style.display = "none";
-    enTransition = false;
+  const view = $("#view");
+  if (reduit || !view.animate) return;
+  window.scrollTo(0, 0);
+  view.animate([{ opacity: 0, transform: "translateY(10px)" }, { opacity: 1, transform: "none" }],
+    { duration: 200, easing: "cubic-bezier(.2,.7,.3,1)" });
+
+  const tap = dernierTap && Date.now() - dernierTap.t < 1500 ? dernierTap : null;
+  dernierTap = null;
+  if (!tap) return;
+  const fx = $("#fx");
+  const couleur = /ajouter/.test(location.hash) ? "var(--yellow)" : "var(--pink)";
+  const els = [];
+
+  // la patte
+  const patte = document.createElement("div");
+  patte.className = "fx-paw";
+  patte.style.cssText = `left:${tap.x}px;top:${tap.y}px;color:${couleur}`;
+  patte.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${ICONS.balade}</svg>`;
+  fx.appendChild(patte); els.push(patte);
+  const rot = Math.round(Math.random() * 40 - 20);
+  patte.animate([
+    { transform: `translate(-50%,-50%) scale(.2) rotate(${rot}deg)`, opacity: 1 },
+    { transform: `translate(-50%,-50%) scale(1.15) rotate(${rot}deg)`, opacity: 1, offset: .35 },
+    { transform: `translate(-50%,-50%) scale(1) rotate(${rot}deg)`, opacity: .9, offset: .6 },
+    { transform: `translate(-50%,-50%) scale(1.05) rotate(${rot}deg)`, opacity: 0 }
+  ], { duration: 380, easing: "ease-out", fill: "forwards" });
+
+  // les éclaboussures
+  const n = 10;
+  for (let i = 0; i < n; i++) {
+    const g = document.createElement("i");
+    g.className = "fx-drop";
+    const ang = (i / n) * Math.PI * 2 + Math.random() * .5;
+    const dist = 46 + Math.random() * 54;
+    const taille = 6 + Math.random() * 10;
+    g.style.cssText = `left:${tap.x}px;top:${tap.y}px;width:${taille}px;height:${taille}px;background:${couleur}`;
+    fx.appendChild(g); els.push(g);
+    const dx = Math.cos(ang) * dist, dy = Math.sin(ang) * dist;
+    const deg = ang * 180 / Math.PI;
+    g.animate([
+      { transform: `translate(-50%,-50%) rotate(${deg}deg) scale(1.8,.6)`, opacity: 1 },
+      { transform: `translate(calc(-50% + ${dx * .7}px),calc(-50% + ${dy * .7}px)) rotate(${deg}deg) scale(1.2,.9)`, opacity: 1, offset: .45 },
+      { transform: `translate(calc(-50% + ${dx}px),calc(-50% + ${dy}px)) rotate(${deg}deg) scale(.4)`, opacity: 0 }
+    ], { duration: 320 + Math.random() * 80, easing: "cubic-bezier(.15,.8,.3,1)", fill: "forwards" });
   }
+  setTimeout(() => els.forEach((e) => e.remove()), 480);
 }
 
 /* ---------- Thème clair / sombre (mémorisé sur chaque téléphone) ---------- */
