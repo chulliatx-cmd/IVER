@@ -7,10 +7,10 @@ const TYPES = {
   pipi:   { label: "Pipi",   color: "var(--pipi)",   bg: "var(--pipi-bg)",   ink: "var(--pipi-ink)" },
   caca:   { label: "Caca",   color: "var(--caca)",   bg: "var(--caca-bg)",   ink: "var(--caca-ink)" },
   repas:  { label: "Repas",  color: "var(--repas)",  bg: "var(--repas-bg)",  ink: "var(--repas-ink)" },
-  sieste: { label: "Sieste", color: "var(--sieste)", bg: "var(--sieste-bg)", ink: "var(--sieste-ink)" },
+  sieste: { label: "Dodo", color: "var(--sieste)", bg: "var(--sieste-bg)", ink: "var(--sieste-ink)" },
   balade: { label: "Balade", color: "var(--balade)", bg: "var(--balade-bg)", ink: "var(--balade-ink)" }
 };
-const FEMININ = { sieste: true, balade: true };
+const FEMININ = { balade: true };
 const RDV = {
   veto:       { label: "Vétérinaire", color: "#FF5F7E", bg: "#FF5F7E29" },
   toiletteur: { label: "Toiletteur",  color: "#5FD3E6", bg: "#5FD3E629" },
@@ -210,7 +210,7 @@ function statTiles(st, isToday) {
     { k: "Pipis", c: "pipi", v: st.pipis.length, s: `${st.pipis.length - st.pipiAcc} dehors · ${st.pipiAcc} ${plur(st.pipiAcc, "accident")}` },
     { k: "Cacas", c: "caca", v: st.cacas.length, s: st.cacas[0] ? `dernier à ${hfr(st.cacas[0].time)}` : rien("aucun") },
     { k: "Repas", c: "repas", v: st.repas.length, s: st.repas[0] ? `dernier à ${hfr(st.repas[0].time)}` : rien("aucun") },
-    { k: "Sommeil", c: "sieste", v: st.sleepMin ? dureeTxt(st.sleepMin) : "0 h", s: `${st.nbSiestes} ${plur(st.nbSiestes, "sieste")}` },
+    { k: "Sommeil", c: "sieste", v: st.sleepMin ? dureeTxt(st.sleepMin) : "0 h", s: `${st.nbSiestes} ${plur(st.nbSiestes, "dodo")}` },
     { k: "Balades", c: "balade", wide: true,
       v: st.balades.length ? dureeTxt(st.baladeMin) : "0 min",
       s: st.balades.length ? `${st.balades.length} ${plur(st.balades.length, "balade")} · dernière à ${hfr(st.balades[0].time)}` : rien("aucune") }
@@ -306,7 +306,7 @@ function bindDelete() {
   }));
 }
 
-/* ---------- Sieste en cours ---------- */
+/* ---------- Dodo en cours ---------- */
 
 const ICON_MOON = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>`;
 const siesteEnCours = () => events.filter((e) => e.type === "sieste" && e.end == null).sort((a, b) => b.time - a.time)[0];
@@ -317,7 +317,7 @@ function sleepNowCard(ev) {
     <div class="row-top">
       <div class="ico">${svgIcon("sieste", 24)}</div>
       <div class="txt">
-        <span class="lbl">Sieste en cours · endormie à ${hfr(ev.time)}</span>
+        <span class="lbl">Dodo en cours · endormie à ${hfr(ev.time)}</span>
         <span class="val">${nom} dort depuis ${dureeTxt((Date.now() - ev.time) / 60000)}</span>
       </div>
     </div>
@@ -340,7 +340,7 @@ function bindWake() {
     b.disabled = true;
     try {
       await store.update(ev.id, { end });
-      toast(`Sieste terminée · ${dureeTxt((end - ev.time) / 60000)}`);
+      toast(`Dodo terminé · ${dureeTxt((end - ev.time) / 60000)}`);
       if (route.lastTab === "ajouter") location.hash = "#/";
     } catch (err) { console.error(err); toast("Échec de l’enregistrement"); b.disabled = false; }
   });
@@ -613,10 +613,10 @@ function renderAjouter() {
 
       ${t === "sieste" && !dort ? `
         <div class="field">
-          <span class="eyebrow">La sieste…</span>
+          <span class="eyebrow">Le dodo…</span>
           <div class="choices">
             <button type="button" class="choice" data-smode="encours" aria-pressed="${pressed(sMode === "encours")}">Commence</button>
-            <button type="button" class="choice" data-smode="terminee" aria-pressed="${pressed(sMode === "terminee")}">Est terminée</button>
+            <button type="button" class="choice" data-smode="terminee" aria-pressed="${pressed(sMode === "terminee")}">Est terminé</button>
           </div>
         </div>` : ""}
 
@@ -630,7 +630,7 @@ function renderAjouter() {
           <span class="hint">Vous pourrez noter le réveil plus tard depuis l’accueil.</span>
         </div>
       ` : t === "sieste" ? `
-        ${dort ? `<span class="eyebrow">Ou noter une autre sieste déjà terminée</span>` : ""}
+        ${dort ? `<span class="eyebrow">Ou noter un autre dodo déjà terminé</span>` : ""}
         <div class="grid2">
           <label>Endormie à<input class="input" type="time" id="debut" value="${form.debut || nowHHMM()}" required></label>
           <label>Réveillée à<input class="input" type="time" id="fin" value="${form.fin || nowHHMM()}" required></label>
@@ -695,7 +695,7 @@ function renderAjouter() {
 
       <button type="submit" class="save" id="save">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>
-        ${edit ? "Enregistrer les modifications" : t === "sieste" && sMode === "encours" ? "Commencer la sieste" : `Enregistrer ${FEMININ[t] ? "la" : "le"} ${TYPES[t].label.toLowerCase()}`}
+        ${edit ? "Enregistrer les modifications" : t === "sieste" && sMode === "encours" ? "Commencer le dodo" : `Enregistrer ${FEMININ[t] ? "la" : "le"} ${TYPES[t].label.toLowerCase()}`}
       </button>
       ${edit ? `<button type="button" class="btn-soft danger" id="fdel">Supprimer cette entrée</button>` : ""}
     </form>`;
@@ -783,7 +783,7 @@ function renderAjouter() {
     }
     try {
       await store.add(ev);
-      toast(ev.type === "sieste" && ev.end == null ? "Bonne sieste ! Notez le réveil depuis l’accueil" : `${TYPES[form.type].label} enregistré${FEMININ[form.type] ? "e" : ""}`);
+      toast(ev.type === "sieste" && ev.end == null ? "Bon dodo ! Notez le réveil depuis l’accueil" : `${TYPES[form.type].label} enregistré${FEMININ[form.type] ? "e" : ""}`);
       form.heure = form.debut = form.fin = form.note = form.qty = undefined;
       location.hash = "#/";
     } catch (err) {
@@ -1102,9 +1102,9 @@ function etapesGuide() {
   return [
     { titre: `Bienvenue dans le journal ${/^[aeiouyhéèêàâîôû]/i.test(nom) ? "d’" : "de "}${nom} 🐾`, texte: "Petit tour rapide de l’app : une minute, promis. Vous pourrez le revoir à tout moment avec le bouton « ? » en haut." },
     { sel: "#mood", titre: "L’humeur du jour", texte: `Touchez la bulle pour dire comment va ${nom} aujourd’hui : joueuse, câline, fatiguée… C’est partagé entre vous deux.` },
-    { sel: ".pills", titre: "Ajout rapide", texte: "Pipi, caca, repas, sieste, balade : touchez une pastille pour noter en deux secondes." },
+    { sel: ".pills", titre: "Ajout rapide", texte: "Pipi, caca, repas, dodo, balade : touchez une pastille pour noter en deux secondes." },
     { sel: "#fab", titre: "Le gros +", texte: "Ouvre le formulaire complet : heure, dehors ou accident, quantité, durée, qui note, petite note…" },
-    { sel: ".sleep-now", titre: "Sieste en cours", texte: `${nom} dort ! Le compteur tourne ; touchez « Elle s’est réveillée » au réveil.` },
+    { sel: ".sleep-now", titre: "Dodo en cours", texte: `${nom} dort ! Le compteur tourne ; touchez « Elle s’est réveillée » au réveil.` },
     { sel: ".postit-apercu", titre: "Le dernier post-it", texte: "Le dernier mot laissé s’affiche ici. Touchez-le pour voir tous les post-it." },
     { sel: ".last", titre: "Dernier pipi", texte: "Depuis combien de temps, avec un rappel « Sortir bientôt » quand ça fait longtemps." },
     { sel: ".stats", titre: "La journée en chiffres", texte: "Pipis (dehors / accidents), cacas, repas, sommeil et balades du jour." },
