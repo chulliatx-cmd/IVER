@@ -7,7 +7,15 @@ const TYPES = {
   pipi:   { label: "Pipi",   color: "#E0A100", bg: "#FFF4D4", ink: "#6B4C00" },
   caca:   { label: "Caca",   color: "#8A5A3C", bg: "#F3E8E0", ink: "#5A3820" },
   repas:  { label: "Repas",  color: "#2E8B57", bg: "#E3F3EA", ink: "#1F5C3A" },
-  sieste: { label: "Sieste", color: "#6B4FC2", bg: "#ECE8FB", ink: "#3F2E8A" }
+  sieste: { label: "Sieste", color: "#6B4FC2", bg: "#ECE8FB", ink: "#3F2E8A" },
+  balade: { label: "Balade", color: "#C2552B", bg: "#FDE9DF", ink: "#7A2E10" }
+};
+const FEMININ = { sieste: true, balade: true };
+const RDV = {
+  veto:       { label: "Vétérinaire", color: "#C23B5A" },
+  toiletteur: { label: "Toiletteur",  color: "#1F7F92" },
+  vaccin:     { label: "Vaccin",      color: "#2F5BC4" },
+  autre:      { label: "Autre",       color: "#5C6B62" }
 };
 const MANGE = { tout: "tout mangé", moitie: "la moitié", rien: "rien mangé" };
 
@@ -49,6 +57,7 @@ async function firebaseStore() {
 
 let store;
 let events = [];
+let rdvs = [];
 
 /* ---------- Utilitaires ---------- */
 
@@ -91,6 +100,7 @@ function detail(ev) {
     if (ev.qty) parts.push(`${ev.qty} g`);
     if (ev.eaten) parts.push(MANGE[ev.eaten]);
   }
+  if (ev.type === "balade" && ev.end) parts.push(dureeTxt((ev.end - ev.time) / 60000));
   if (ev.type === "sieste" && ev.end) parts.push(`${dureeTxt((ev.end - ev.time) / 60000)} · jusqu’à ${hhmm(ev.end)}`);
   if (ev.note) parts.push(ev.note);
   return parts.join(" · ");
@@ -98,6 +108,13 @@ function detail(ev) {
 
 const ICON_PAW = `<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 9c-1.5 0-2.5-2-2-4 1.5 0 3 1 3.5 2.5"/><path d="M19 9c1.5 0 2.5-2 2-4-1.5 0-3 1-3.5 2.5"/><path d="M6.5 8.5C7.5 6.5 9.5 5.5 12 5.5s4.5 1 5.5 3c.8 1.6.5 4.5-.5 6.5-1.1 2.2-3 3.5-5 3.5s-3.9-1.3-5-3.5c-1-2-1.3-4.9-.5-6.5z"/><circle cx="9.7" cy="11" r="0.6" fill="currentColor"/><circle cx="14.3" cy="11" r="0.6" fill="currentColor"/><path d="M11 14.5h2l-1 1z"/></svg>`;
 const ICON_CLOCK = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>`;
+const ICON_CAL = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>`;
+const dateLongue = (ms) => {
+  const d0 = startOfDay(ms), t0 = startOfDay(Date.now());
+  if (d0 === t0) return "Aujourd’hui";
+  if (d0 === t0 + DAY) return "Demain";
+  return new Date(ms).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+};
 const ICON_TRASH = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>`;
 
 function eventRow(ev, withDelete) {
@@ -112,59 +129,125 @@ function eventRow(ev, withDelete) {
   </div>`;
 }
 
-/* ---------- Écran : Accueil ---------- */
+/* ---------- Statistiques d'une journée ---------- */
 
-function renderAccueil() {
+const nf = (x) => x.toLocaleString("fr-FR", { maximumFractionDigits: 1 });
+const plur = (n, s) => `${s}${n > 1 ? "s" : ""}`;
+
+function dayStats(d0) {
+  const d1 = d0 + DAY;
+  const until = Math.min(d1, Date.now());
+  const list = events.filter((e) => e.time >= d0 && e.time < d1).sort((a, b) => b.time - a.time);
+  const of = (t) => list.filter((e) => e.type === t);
+  const pipis = of("pipi"), cacas = of("caca"), repas = of("repas"), balades = of("balade");
+  const siestes = events.filter((e) => e.type === "sieste" && sleepOverlap(e, d0, until) > 0);
+  return {
+    list, pipis, cacas, repas, balades,
+    pipiAcc: pipis.filter((e) => e.place === "dedans").length,
+    cacaAcc: cacas.filter((e) => e.place === "dedans").length,
+    baladeMin: balades.reduce((m, e) => m + ((e.end || e.time) - e.time) / 60000, 0),
+    sleepMin: siestes.reduce((m, e) => m + sleepOverlap(e, d0, until) / 60000, 0),
+    nbSiestes: siestes.length
+  };
+}
+
+function statTiles(st, isToday) {
+  const rien = (f) => isToday ? `${f} aujourd’hui` : `${f} ce jour-là`;
+  const tiles = [
+    { k: "Pipis", c: TYPES.pipi.color, v: st.pipis.length, s: `${st.pipis.length - st.pipiAcc} dehors · ${st.pipiAcc} ${plur(st.pipiAcc, "accident")}` },
+    { k: "Cacas", c: TYPES.caca.color, v: st.cacas.length, s: st.cacas[0] ? `dernier à ${hfr(st.cacas[0].time)}` : rien("aucun") },
+    { k: "Repas", c: TYPES.repas.color, v: st.repas.length, s: st.repas[0] ? `dernier à ${hfr(st.repas[0].time)}` : rien("aucun") },
+    { k: "Sommeil", c: TYPES.sieste.color, v: st.sleepMin ? dureeTxt(st.sleepMin) : "0 h", s: `${st.nbSiestes} ${plur(st.nbSiestes, "sieste")}` },
+    { k: "Balades", c: TYPES.balade.color, wide: true,
+      v: st.balades.length ? dureeTxt(st.baladeMin) : "0 min",
+      s: st.balades.length ? `${st.balades.length} ${plur(st.balades.length, "balade")} · dernière à ${hfr(st.balades[0].time)}` : rien("aucune") }
+  ];
+  return `<div class="stats">
+    ${tiles.map((s) => `<div class="card stat${s.wide ? " wide" : ""}">
+      <div class="k"><span class="dot" style="background:${s.c}"></span>${s.k}</div>
+      <span class="v">${s.v}</span><span class="s">${s.s}</span>
+    </div>`).join("")}
+  </div>`;
+}
+
+// Moyennes par jour de la semaine en cours (jours terminés, lundi → hier).
+// Le lundi, on affiche la semaine dernière.
+function weekAverages(today) {
+  const monday = today - ((new Date(today).getDay() + 6) % 7) * DAY;
+  let from = monday, to = today, titre = "Cette semaine";
+  if (monday === today) { from = monday - 7 * DAY; to = monday; titre = "Semaine dernière"; }
+  const days = [];
+  for (let d = from; d < to; d += DAY) {
+    const st = dayStats(d);
+    if (st.list.length || st.sleepMin) days.push(st);
+  }
+  if (!days.length) {
+    return `<div class="card"><h2 class="h2">${titre} · moyennes</h2>
+      <p class="empty-msg" style="padding:12px 0 0;text-align:left">Les moyennes apparaîtront dès qu’une journée complète aura été notée.</p></div>`;
+  }
+  const n = days.length;
+  const avg = (f) => days.reduce((s, st) => s + f(st), 0) / n;
+  const items = [
+    { k: "Pipis", c: TYPES.pipi.color, v: nf(avg((s) => s.pipis.length)) },
+    { k: "Accidents", c: "#C23B5A", v: nf(avg((s) => s.pipiAcc + s.cacaAcc)) },
+    { k: "Cacas", c: TYPES.caca.color, v: nf(avg((s) => s.cacas.length)) },
+    { k: "Repas", c: TYPES.repas.color, v: nf(avg((s) => s.repas.length)) },
+    { k: "Balade", c: TYPES.balade.color, v: dureeTxt(avg((s) => s.baladeMin)) },
+    { k: "Sommeil", c: TYPES.sieste.color, v: dureeTxt(avg((s) => s.sleepMin)) }
+  ];
+  return `<div class="card">
+    <div class="row-between">
+      <h2 class="h2">${titre} · moyenne par jour</h2>
+    </div>
+    <span class="sync">Sur ${n} ${plur(n, "journée")} ${plur(n, "complète")} notée${n > 1 ? "s" : ""}</span>
+    <div class="avg">
+      ${items.map((i) => `<div class="avg-i">
+        <span class="k"><span class="dot" style="background:${i.c}"></span>${i.k}</span>
+        <span class="v">${i.v}</span>
+      </div>`).join("")}
+    </div>
+  </div>`;
+}
+
+function bindDelete() {
+  $("#view").querySelectorAll("[data-del]").forEach((b) => b.addEventListener("click", async () => {
+    if (!confirm("Supprimer cette entrée ?")) return;
+    await store.remove(b.dataset.del);
+    toast("Entrée supprimée");
+  }));
+}
+
+/* ---------- Écran : Accueil (aujourd'hui) et détail d'un jour passé ---------- */
+
+function renderJour(d0) {
   const now = Date.now();
   const today = startOfDay(now);
-  const todays = events.filter((e) => e.time >= today).sort((a, b) => b.time - a.time);
-  const of = (type) => todays.filter((e) => e.type === type);
+  const isToday = d0 === today;
+  const st = dayStats(d0);
+  const dateTxt = new Date(d0).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: isToday ? undefined : "numeric" });
 
-  const pipis = of("pipi"), cacas = of("caca"), repas = of("repas");
-  const accidents = pipis.filter((e) => e.place === "dedans").length + cacas.filter((e) => e.place === "dedans").length;
-  const siestes = events.filter((e) => e.type === "sieste");
-  const sleepMs = siestes.reduce((s, e) => s + sleepOverlap(e, today, now), 0);
-  const nbSiestes = siestes.filter((e) => sleepOverlap(e, today, now) > 0).length;
-
-  const lastPipi = events.filter((e) => e.type === "pipi").sort((a, b) => b.time - a.time)[0];
-  let lastHtml;
-  if (lastPipi) {
-    const late = (now - lastPipi.time) / 60000 >= RAPPEL;
-    lastHtml = `<span class="val">${ilYa(lastPipi.time)} · ${hfr(lastPipi.time)}</span>`;
-    lastHtml += `</div><span class="badge ${late ? "warn" : "ok"}">${late ? "Sortir bientôt" : "Tout va bien"}</span>`;
-  } else {
-    lastHtml = `<span class="val">Pas encore noté</span></div>`;
-  }
-
-  const lastCaca = cacas[0];
-  const lastRepas = repas[0];
-  const stats = [
-    { k: "Pipis", c: TYPES.pipi.color, v: pipis.length, s: `${pipis.filter((e) => e.place !== "dedans").length} dehors · ${pipis.filter((e) => e.place === "dedans").length} accident${pipis.filter((e) => e.place === "dedans").length > 1 ? "s" : ""}` },
-    { k: "Cacas", c: TYPES.caca.color, v: cacas.length, s: lastCaca ? `dernier à ${hfr(lastCaca.time)}` : "aucun aujourd’hui" },
-    { k: "Repas", c: TYPES.repas.color, v: repas.length, s: lastRepas ? `dernier à ${hfr(lastRepas.time)}` : "aucun aujourd’hui" },
-    { k: "Sommeil", c: TYPES.sieste.color, v: sleepMs ? dureeTxt(sleepMs / 60000) : "0 h", s: `${nbSiestes} sieste${nbSiestes > 1 ? "s" : ""}` }
-  ];
-
-  // Semaine : 7 derniers jours
-  const jours = ["D", "L", "M", "M", "J", "V", "S"];
-  const week = [];
-  let weekAcc = 0;
-  for (let i = 6; i >= 0; i--) {
-    const d0 = today - i * DAY, d1 = d0 + DAY;
-    const dayP = events.filter((e) => e.type === "pipi" && e.time >= d0 && e.time < d1);
-    weekAcc += dayP.filter((e) => e.place === "dedans").length;
-    week.push({ n: dayP.length, d: jours[new Date(d0).getDay()], today: i === 0 });
-  }
-  const max = Math.max(1, ...week.map((w) => w.n));
-
-  const dateTxt = new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
-
-  $("#view").innerHTML = `
+  let top;
+  if (isToday) {
+    const lastPipi = events.filter((e) => e.type === "pipi").sort((a, b) => b.time - a.time)[0];
+    let lastHtml;
+    if (lastPipi) {
+      const late = (now - lastPipi.time) / 60000 >= RAPPEL;
+      lastHtml = `<span class="val">${ilYa(lastPipi.time)} · ${hfr(lastPipi.time)}</span></div>
+        <span class="badge ${late ? "warn" : "ok"}">${late ? "Sortir bientôt" : "Tout va bien"}</span>`;
+    } else {
+      lastHtml = `<span class="val">Pas encore noté</span></div>`;
+    }
+    const nextRdv = rdvs.filter((r) => r.time >= now - 3600000).sort((a, b) => a.time - b.time)[0];
+    top = `
     <div class="head">
       <div class="left">
         <span class="eyebrow">${esc(dateTxt)}</span>
         <h1 class="title">La journée de ${esc(CFG.nomChiot || "mon chiot")}</h1>
         <span class="sync ${store.online ? "" : "off"}">${store.online ? "Synchronisé" : "Mode local (non partagé)"}</span>
+        <button type="button" class="share" id="share">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M16 6l-4-4-4 4M12 2v13"/></svg>
+          Partager le lien
+        </button>
       </div>
       <div class="avatar">${ICON_PAW}</div>
     </div>
@@ -174,72 +257,92 @@ function renderAccueil() {
       <div class="txt"><span class="lbl">Dernier pipi</span>${lastHtml}
     </div>
 
-    <div class="stats">
-      ${stats.map((s) => `<div class="card stat">
-        <div class="k"><span class="dot" style="background:${s.c}"></span>${s.k}</div>
-        <span class="v">${s.v}</span><span class="s">${s.s}</span>
-      </div>`).join("")}
-    </div>
-
-    <div class="card">
-      <div class="row-between">
-        <h2 class="h2">Pipis sur 7 jours</h2>
-        <span class="small-ok">${weekAcc} accident${weekAcc > 1 ? "s" : ""}</span>
-      </div>
-      <div class="bars">
-        ${week.map((w) => `<div class="bar">
-          <span class="n">${w.n || ""}</span>
-          <div class="b ${w.n ? (w.today ? "today" : "") : "empty"}" style="height:${w.n ? Math.round((w.n / max) * 60) : 4}px"></div>
-          <span class="d">${w.d}</span>
-        </div>`).join("")}
+    ${nextRdv ? `<a href="#/calendrier" class="card rdv-next">
+      <div class="ico" style="background:${RDV[nextRdv.rdvType]?.color || "#5C6B62"}">${ICON_CAL}</div>
+      <div class="txt"><span class="lbl">Prochain rendez-vous</span>
+        <span class="val">${esc(RDV[nextRdv.rdvType]?.label || "Rendez-vous")}${nextRdv.title ? " · " + esc(nextRdv.title) : ""}</span>
+        <span class="lbl">${esc(dateLongue(nextRdv.time))} à ${hfr(nextRdv.time)}</span></div>
+    </a>` : ""}`;
+  } else {
+    const prev = d0 - DAY, next = d0 + DAY;
+    top = `
+    <div class="formhead">
+      <a href="#/historique" class="back" aria-label="Retour aux jours passés"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></a>
+      <div class="left" style="display:flex;flex-direction:column;gap:2px;min-width:0">
+        <span class="eyebrow">Journée passée</span>
+        <h1 class="title day-h">${esc(dateTxt)}</h1>
       </div>
     </div>
-
-    <div class="list">
-      <div class="row-between">
-        <h2 class="h2">Aujourd’hui</h2>
-        <a href="#/historique" style="font-size:13px;font-weight:700">Tout voir</a>
-      </div>
-      ${todays.length ? todays.map((e) => eventRow(e, false)).join("") : `<div class="empty-msg">Rien de noté aujourd’hui. Appuyez sur « Ajouter ».</div>`}
+    <div class="daynav">
+      <a href="#/jour/${prev}" class="btn-soft">‹ Veille</a>
+      ${next < today ? `<a href="#/jour/${next}" class="btn-soft">Lendemain ›</a>` : `<a href="#/" class="btn-soft">Aujourd’hui ›</a>`}
     </div>`;
-}
-
-/* ---------- Écran : Historique ---------- */
-
-function renderHistorique() {
-  const sorted = [...events].sort((a, b) => b.time - a.time);
-  const groups = new Map();
-  for (const e of sorted.slice(0, 500)) {
-    const k = startOfDay(e.time);
-    if (!groups.has(k)) groups.set(k, []);
-    groups.get(k).push(e);
   }
-  const today = startOfDay(Date.now());
-  const label = (k) => k === today ? "Aujourd’hui" : k === today - DAY ? "Hier" :
-    new Date(k).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
-  const summary = (list) => {
-    const c = (t) => list.filter((e) => e.type === t).length;
-    return `${c("pipi")} pipis · ${c("caca")} cacas · ${c("repas")} repas`;
-  };
 
   $("#view").innerHTML = `
-    <h1 class="title">Historique</h1>
-    ${groups.size ? [...groups].map(([k, list]) => `
-      <div class="list">
-        <div class="row-between"><span class="day-title">${esc(label(k))}</span><span class="sync">${summary(list)}</span></div>
-        ${list.map((e) => eventRow(e, true)).join("")}
-      </div>`).join("") : `<div class="empty-msg">Aucune entrée pour l’instant.</div>`}`;
+    ${top}
+    ${statTiles(st, isToday)}
+    ${isToday ? weekAverages(today) : ""}
+    <div class="list">
+      <div class="row-between">
+        <h2 class="h2">Détail de la journée</h2>
+        ${isToday ? `<a href="#/historique" style="font-size:13px;font-weight:700">Jours passés</a>` : ""}
+      </div>
+      ${st.list.length ? st.list.map((e) => eventRow(e, true)).join("") : `<div class="empty-msg">${isToday ? "Rien de noté aujourd’hui. Appuyez sur « Ajouter »." : "Rien de noté ce jour-là."}</div>`}
+    </div>`;
 
-  $("#view").querySelectorAll("[data-del]").forEach((b) => b.addEventListener("click", async () => {
-    if (!confirm("Supprimer cette entrée ?")) return;
-    await store.remove(b.dataset.del);
-    toast("Entrée supprimée");
-  }));
+  $("#share")?.addEventListener("click", partagerLien);
+  bindDelete();
+}
+
+function renderAccueil() { renderJour(startOfDay(Date.now())); }
+
+async function partagerLien() {
+  const url = location.origin + location.pathname;
+  if (navigator.share) {
+    try { await navigator.share({ title: "Journal du chiot", url }); } catch {}
+    return;
+  }
+  try { await navigator.clipboard.writeText(url); toast("Lien copié"); }
+  catch { prompt("Copiez ce lien :", url); }
+}
+
+/* ---------- Écran : Jours passés ---------- */
+
+function renderHistorique() {
+  const today = startOfDay(Date.now());
+  const days = [...new Set(events.map((e) => startOfDay(e.time)))].filter((d) => d <= today).sort((a, b) => b - a).slice(0, 120);
+  const label = (k) => k === today ? "Aujourd’hui" : k === today - DAY ? "Hier" :
+    new Date(k).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+  const chip = (c, txt) => `<span class="chip"><i style="background:${c}"></i>${txt}</span>`;
+
+  $("#view").innerHTML = `
+    <h1 class="title">Jours passés</h1>
+    <div class="list">
+      ${days.length ? days.map((d) => {
+        const st = dayStats(d);
+        const acc = st.pipiAcc + st.cacaAcc;
+        return `<a href="${d === today ? "#/" : `#/jour/${d}`}" class="card daycard">
+          <div class="row-between">
+            <span class="h2 cap">${esc(label(d))}</span>
+            <span class="chev" aria-hidden="true">›</span>
+          </div>
+          <div class="chips">
+            ${chip(TYPES.pipi.color, `${st.pipis.length} ${plur(st.pipis.length, "pipi")}`)}
+            ${acc ? chip("#C23B5A", `${acc} ${plur(acc, "accident")}`) : ""}
+            ${chip(TYPES.caca.color, `${st.cacas.length} ${plur(st.cacas.length, "caca")}`)}
+            ${chip(TYPES.repas.color, `${st.repas.length} repas`)}
+            ${st.baladeMin ? chip(TYPES.balade.color, `${dureeTxt(st.baladeMin)} de balade`) : ""}
+            ${st.sleepMin ? chip(TYPES.sieste.color, `${dureeTxt(st.sleepMin)} de sommeil`) : ""}
+          </div>
+        </a>`;
+      }).join("") : `<div class="empty-msg">Aucune journée notée pour l’instant.</div>`}
+    </div>`;
 }
 
 /* ---------- Écran : Ajouter ---------- */
 
-const form = { type: "pipi", place: "dehors", eaten: "tout" };
+const form = { type: "pipi", place: "dehors", eaten: "tout", dur: 30 };
 
 function nowHHMM() { return hhmm(Date.now()); }
 // Convertit "HH:MM" en timestamp d'aujourd'hui (ou d'hier si l'heure est dans le futur).
@@ -300,6 +403,18 @@ function renderAjouter() {
           </div>
         </div>` : ""}
 
+      ${t === "balade" ? `
+        <div class="field">
+          <span class="eyebrow">Durée de la balade</span>
+          <div class="choices four">
+            ${[15, 30, 45, 60].map((m) => `<button type="button" class="choice" data-dur="${m}" aria-pressed="${pressed(String(form.dur) === String(m))}">${m} min</button>`).join("")}
+          </div>
+          <div class="inline">
+            <input id="dur" class="input" type="number" inputmode="numeric" min="1" max="600" value="${esc(form.dur ?? "")}" aria-label="Durée en minutes">
+            <span class="unit">minutes</span>
+          </div>
+        </div>` : ""}
+
       ${t === "repas" ? `
         <div class="field">
           <label for="qte" class="eyebrow">Quantité (g)</label>
@@ -328,7 +443,7 @@ function renderAjouter() {
 
       <button type="submit" class="save" id="save">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>
-        Enregistrer ${t === "sieste" ? "la sieste" : `le ${TYPES[t].label.toLowerCase()}`}
+        Enregistrer ${FEMININ[t] ? "la" : "le"} ${TYPES[t].label.toLowerCase()}
       </button>
     </form>`;
 
@@ -338,6 +453,7 @@ function renderAjouter() {
     form.debut = $("#debut")?.value ?? form.debut;
     form.fin = $("#fin")?.value ?? form.fin;
     form.qty = $("#qte")?.value ?? form.qty;
+    form.dur = $("#dur")?.value ?? form.dur;
     form.note = $("#note")?.value ?? form.note;
   };
   const bind = (attr, key) => $("#view").querySelectorAll(`[data-${attr}]`).forEach((b) =>
@@ -347,7 +463,7 @@ function renderAjouter() {
       if (key === "who") { try { localStorage.setItem("chiot-who", form.who); } catch {} }
       renderAjouter();
     }));
-  bind("type", "type"); bind("place", "place"); bind("eaten", "eaten"); bind("who", "who");
+  bind("type", "type"); bind("place", "place"); bind("eaten", "eaten"); bind("who", "who"); bind("dur", "dur");
 
   $("#now")?.addEventListener("click", () => { $("#heure").value = nowHHMM(); });
 
@@ -376,12 +492,16 @@ function renderAjouter() {
       ev.time = hhmmToMs(form.heure);
     }
     if (form.type === "pipi" || form.type === "caca") ev.place = form.place;
+    if (form.type === "balade") {
+      const m = Math.max(1, Number(form.dur) || 30);
+      ev.end = ev.time + m * 60000;
+    }
     if (form.type === "repas") { ev.qty = form.qty ? Number(form.qty) : null; ev.eaten = form.eaten; }
 
     $("#save").disabled = true;
     try {
       await store.add(ev);
-      toast(`${TYPES[form.type].label} enregistré${form.type === "sieste" ? "e" : ""}`);
+      toast(`${TYPES[form.type].label} enregistré${FEMININ[form.type] ? "e" : ""}`);
       form.heure = form.debut = form.fin = form.note = form.qty = undefined;
       location.hash = "#/";
     } catch (err) {
@@ -392,18 +512,179 @@ function renderAjouter() {
   });
 }
 
+/* ---------- Écran : Calendrier ---------- */
+
+const cal = { month: null, sel: null, adding: false, rdvType: "veto" };
+const MOIS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
+const ymd = (ms) => { const d = new Date(ms); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
+
+function rdvRow(r) {
+  const t = RDV[r.rdvType] || RDV.autre;
+  const p = person(r.who);
+  const sub = [dateLongue(r.time) + " à " + hfr(r.time), r.note].filter(Boolean).join(" · ");
+  return `<div class="ev">
+    <span class="dot" style="background:${t.color}"></span>
+    <div class="m"><b>${esc(t.label)}${r.title ? " · " + esc(r.title) : ""}</b><span>${esc(sub)}</span></div>
+    <span class="who" style="background:${p.couleur}" title="${esc(p.nom)}">${esc(p.initiale)}</span>
+    <button class="del" data-delrdv="${esc(r.id)}" aria-label="Supprimer ce rendez-vous">${ICON_TRASH}</button>
+  </div>`;
+}
+
+function renderCalendrier() {
+  const now = Date.now();
+  if (cal.month == null) { const d = new Date(); cal.month = new Date(d.getFullYear(), d.getMonth(), 1).getTime(); }
+  if (cal.sel == null) cal.sel = startOfDay(now);
+  const m0 = new Date(cal.month);
+  const y = m0.getFullYear(), mo = m0.getMonth();
+  const first = new Date(y, mo, 1);
+  const offset = (first.getDay() + 6) % 7; // lundi = 0
+  const nbDays = new Date(y, mo + 1, 0).getDate();
+  const today = startOfDay(now);
+
+  const byDay = new Map();
+  for (const r of rdvs) {
+    const k = startOfDay(r.time);
+    if (!byDay.has(k)) byDay.set(k, []);
+    byDay.get(k).push(r);
+  }
+
+  let cells = "";
+  for (let i = 0; i < offset; i++) cells += `<span></span>`;
+  for (let d = 1; d <= nbDays; d++) {
+    const k = new Date(y, mo, d).getTime();
+    const list = byDay.get(k) || [];
+    const cls = ["day", k === today ? "today" : "", k === cal.sel ? "sel" : ""].join(" ");
+    cells += `<button type="button" class="${cls}" data-day="${k}" aria-pressed="${k === cal.sel}" aria-label="${d} ${MOIS[mo]}${list.length ? `, ${list.length} rendez-vous` : ""}">
+      <span>${d}</span>
+      <span class="dots">${list.slice(0, 3).map((r) => `<i style="background:${(RDV[r.rdvType] || RDV.autre).color}"></i>`).join("")}</span>
+    </button>`;
+  }
+
+  const selList = (byDay.get(cal.sel) || []).sort((a, b) => a.time - b.time);
+  const upcoming = rdvs.filter((r) => r.time >= today).sort((a, b) => a.time - b.time).slice(0, 10);
+  const pressed = (b) => (b ? "true" : "false");
+  cal.who = cal.who || form.who || (() => { try { return localStorage.getItem("chiot-who"); } catch { return null; } })() || PEOPLE[0]?.id;
+
+  const formHtml = cal.adding ? `
+    <form id="rdvf" class="card" style="display:flex;flex-direction:column;gap:16px">
+      <h2 class="h2">Nouveau rendez-vous</h2>
+      <div class="field">
+        <span class="eyebrow">Type</span>
+        <div class="choices">
+          ${Object.entries(RDV).map(([k, v]) => `<button type="button" class="choice" data-rdvtype="${k}" aria-pressed="${pressed(cal.rdvType === k)}">
+            <span class="dot" style="background:${v.color}"></span>${v.label}</button>`).join("")}
+        </div>
+      </div>
+      <div class="grid2">
+        <label>Date<input class="input" type="date" id="rdate" value="${ymd(cal.sel)}" required></label>
+        <label>Heure<input class="input" type="time" id="rheure" value="${esc(cal.heure || "10:00")}" required></label>
+      </div>
+      <div class="field">
+        <label for="rtitre" class="eyebrow">Précision (facultatif)</label>
+        <input id="rtitre" class="input" type="text" maxlength="60" placeholder="Ex. Dr Martin, rappel vaccin…" value="${esc(cal.titre || "")}" style="font-size:16px">
+      </div>
+      <div class="field">
+        <label for="rnote" class="eyebrow">Note (facultatif)</label>
+        <textarea id="rnote" class="input" rows="2" placeholder="Ex. apporter le carnet de santé">${esc(cal.note || "")}</textarea>
+      </div>
+      <div class="field">
+        <span class="eyebrow">Qui ajoute ?</span>
+        <div class="choices">
+          ${PEOPLE.map((p) => `<button type="button" class="choice" data-rwho="${esc(p.id)}" aria-pressed="${pressed(cal.who === p.id)}">
+            <span class="who" style="background:${p.couleur}">${esc(p.initiale)}</span>${esc(p.nom)}</button>`).join("")}
+        </div>
+      </div>
+      <div class="inline">
+        <button type="button" class="btn-soft" id="rcancel">Annuler</button>
+        <button type="submit" class="save" id="rsave" style="flex:1">Enregistrer</button>
+      </div>
+    </form>` : `
+    <button type="button" class="save" id="radd">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+      Ajouter un rendez-vous
+    </button>`;
+
+  $("#view").innerHTML = `
+    <h1 class="title">Calendrier</h1>
+
+    <div class="card">
+      <div class="cal-head">
+        <button type="button" class="back" id="prev" aria-label="Mois précédent"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+        <h2 class="h2" style="text-transform:capitalize">${MOIS[mo]} ${y}</h2>
+        <button type="button" class="back" id="next" aria-label="Mois suivant"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+      </div>
+      <div class="cal-grid wd">${["L", "M", "M", "J", "V", "S", "D"].map((d) => `<span>${d}</span>`).join("")}</div>
+      <div class="cal-grid">${cells}</div>
+      <div class="legend">${Object.values(RDV).map((v) => `<span><i style="background:${v.color}"></i>${v.label}</span>`).join("")}</div>
+    </div>
+
+    <div class="list">
+      <span class="day-title">${esc(dateLongue(cal.sel))}</span>
+      ${selList.length ? selList.map(rdvRow).join("") : `<div class="empty-msg">Aucun rendez-vous ce jour-là.</div>`}
+    </div>
+
+    ${formHtml}
+
+    <div class="list">
+      <h2 class="h2">À venir</h2>
+      ${upcoming.length ? upcoming.map(rdvRow).join("") : `<div class="empty-msg">Aucun rendez-vous prévu.</div>`}
+    </div>`;
+
+  const keep = () => {
+    if (!$("#rdvf")) return;
+    cal.heure = $("#rheure").value; cal.titre = $("#rtitre").value; cal.note = $("#rnote").value;
+    const v = $("#rdate").value;
+    if (v) { const [yy, mm, dd] = v.split("-").map(Number); cal.sel = new Date(yy, mm - 1, dd).getTime(); }
+  };
+  $("#prev").addEventListener("click", () => { keep(); cal.month = new Date(y, mo - 1, 1).getTime(); renderCalendrier(); });
+  $("#next").addEventListener("click", () => { keep(); cal.month = new Date(y, mo + 1, 1).getTime(); renderCalendrier(); });
+  $("#view").querySelectorAll("[data-day]").forEach((b) => b.addEventListener("click", () => {
+    keep(); cal.sel = Number(b.dataset.day); renderCalendrier();
+  }));
+  $("#radd")?.addEventListener("click", () => { cal.adding = true; renderCalendrier(); $("#rdvf").scrollIntoView({ behavior: "smooth", block: "start" }); });
+  $("#rcancel")?.addEventListener("click", () => { cal.adding = false; cal.titre = cal.note = undefined; renderCalendrier(); });
+  $("#view").querySelectorAll("[data-rdvtype]").forEach((b) => b.addEventListener("click", () => { keep(); cal.rdvType = b.dataset.rdvtype; renderCalendrier(); }));
+  $("#view").querySelectorAll("[data-rwho]").forEach((b) => b.addEventListener("click", () => { keep(); cal.who = b.dataset.rwho; renderCalendrier(); }));
+  $("#view").querySelectorAll("[data-delrdv]").forEach((b) => b.addEventListener("click", async () => {
+    if (!confirm("Supprimer ce rendez-vous ?")) return;
+    await store.remove(b.dataset.delrdv);
+    toast("Rendez-vous supprimé");
+  }));
+  $("#rdvf")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    keep();
+    const [yy, mm, dd] = $("#rdate").value.split("-").map(Number);
+    const [h, mi] = $("#rheure").value.split(":").map(Number);
+    const time = new Date(yy, mm - 1, dd, h, mi).getTime();
+    const r = { type: "rdv", rdvType: cal.rdvType, time, title: (cal.titre || "").trim(), note: (cal.note || "").trim(), who: cal.who || null, createdAt: Date.now() };
+    $("#rsave").disabled = true;
+    try {
+      await store.add(r);
+      cal.adding = false; cal.titre = cal.note = undefined;
+      cal.sel = startOfDay(time); cal.month = new Date(yy, mm - 1, 1).getTime();
+      toast("Rendez-vous ajouté");
+      renderCalendrier();
+    } catch (err) {
+      console.error(err); toast("Échec de l’enregistrement"); $("#rsave").disabled = false;
+    }
+  });
+}
+
 /* ---------- Routeur ---------- */
 
 function route() {
   const h = location.hash.replace(/^#\/?/, "");
-  const tab = h === "ajouter" ? "ajouter" : h === "historique" ? "historique" : "accueil";
+  const jour = h.startsWith("jour/") ? Number(h.slice(5)) : null;
+  const tab = jour ? "historique" : ["ajouter", "historique", "calendrier"].includes(h) ? h : "accueil";
   document.querySelectorAll(".tabbar a").forEach((a) => a.classList.toggle("on", a.dataset.tab === tab));
-  $("#fab").classList.toggle("hidden", tab === "ajouter");
+  $("#fab").classList.toggle("hidden", tab === "ajouter" || tab === "calendrier");
   if (tab === "ajouter") renderAjouter();
+  else if (tab === "calendrier") renderCalendrier();
+  else if (jour) renderJour(startOfDay(jour));
   else if (tab === "historique") renderHistorique();
   else renderAccueil();
-  if (route.lastTab !== tab) window.scrollTo(0, 0);
-  route.lastTab = tab;
+  if (route.lastHash !== h) window.scrollTo(0, 0);
+  route.lastTab = tab; route.lastHash = h;
 }
 
 async function start() {
@@ -414,9 +695,12 @@ async function start() {
     store = localStore();
   }
   store.subscribe((list) => {
-    events = list.filter((e) => typeof e.time === "number");
+    const all = list.filter((e) => typeof e.time === "number");
+    events = all.filter((e) => e.type !== "rdv");
+    rdvs = all.filter((e) => e.type === "rdv");
     // Ne pas effacer un formulaire en cours de saisie
-    if (route.lastTab !== "ajouter") route();
+    // Ne pas effacer un formulaire en cours de saisie
+    if (route.lastTab !== "ajouter" && !(route.lastTab === "calendrier" && cal.adding)) route();
   });
   window.addEventListener("hashchange", route);
   route();
