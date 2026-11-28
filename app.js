@@ -290,16 +290,18 @@ function weekBars(today) {
 // Le lundi, on affiche la semaine dernière.
 function weekAverages(today) {
   const monday = today - ((new Date(today).getDay() + 6) % 7) * DAY;
-  // Moyenne sur les jours remplis de la semaine en cours, aujourd'hui compris
-  const titre = "Cette semaine";
+  // Moyenne sur les jours remplis de la semaine en cours, sans la journée en cours (incomplète).
+  // Le lundi, aucun jour n'est encore terminé : on affiche la semaine dernière.
+  let from = monday, to = today, titre = "Cette semaine";
+  if (monday === today) { from = monday - 7 * DAY; to = monday; titre = "Semaine dernière"; }
   const days = [];
-  for (let d = monday; d <= today; d += DAY) {
+  for (let d = from; d < to; d += DAY) {
     const st = dayStats(d);
     if (st.list.length || st.sleepMin) days.push(st);
   }
   if (!days.length) {
     return `<div class="card">${weekBars(today)}<h2 class="h2" style="margin-top:14px">${titre} · moyennes</h2>
-      <p class="empty-msg" style="padding:12px 0 0;text-align:left">Les moyennes apparaîtront dès que quelque chose sera noté cette semaine.</p></div>`;
+      <p class="empty-msg" style="padding:12px 0 0;text-align:left">Les moyennes apparaîtront dès qu’une journée complète aura été notée.</p></div>`;
   }
   const n = days.length;
   const avg = (f) => days.reduce((s, st) => s + f(st), 0) / n;
@@ -316,7 +318,7 @@ function weekAverages(today) {
     <div class="row-between" style="margin-top:14px">
       <h2 class="h2">${titre} · moyenne / jour</h2>
     </div>
-    <span class="hint">Sur ${n} ${plur(n, "jour")} ${plur(n, "noté")} cette semaine${dayStats(today).list.length ? ", aujourd’hui compris" : ""}</span>
+    <span class="hint">Sur ${n} ${plur(n, "jour")} ${plur(n, "noté")}, sans aujourd’hui (journée en cours)</span>
     <div class="avg">
       ${items.map((i) => `<div class="avg-i">
         <span class="k">${tIcon(i.c, "xs")}${i.k}</span>
