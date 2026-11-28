@@ -32,7 +32,8 @@ function localStore() {
     online: false,
     subscribe(cb) { subs.push(cb); cb(read()); },
     async add(ev) { const l = read(); l.push({ ...ev, id: crypto.randomUUID() }); write(l); emit(); },
-    async remove(id) { write(read().filter((e) => e.id !== id)); emit(); }
+    async remove(id) { write(read().filter((e) => e.id !== id)); emit(); },
+    async update(id, patch) { write(read().map((e) => (e.id === id ? { ...e, ...patch } : e))); emit(); }
   };
 }
 
@@ -51,7 +52,8 @@ async function firebaseStore() {
         (err) => { console.error(err); toast("Erreur de synchronisation"); });
     },
     async add(ev) { await fs.addDoc(col, ev); },
-    async remove(id) { await fs.deleteDoc(fs.doc(col, id)); }
+    async remove(id) { await fs.deleteDoc(fs.doc(col, id)); },
+    async update(id, patch) { await fs.updateDoc(fs.doc(col, id), patch); }
   };
 }
 
@@ -90,7 +92,7 @@ function toast(msg) {
 }
 function sleepOverlap(ev, from, to) {
   if (ev.type !== "sieste") return 0;
-  const s = Math.max(ev.time, from), e = Math.min(ev.end || ev.time, to);
+  const s = Math.max(ev.time, from), e = Math.min(ev.end ?? Date.now(), to);
   return Math.max(0, e - s);
 }
 function detail(ev) {
@@ -101,6 +103,7 @@ function detail(ev) {
     if (ev.eaten) parts.push(MANGE[ev.eaten]);
   }
   if (ev.type === "balade" && ev.end) parts.push(dureeTxt((ev.end - ev.time) / 60000));
+  if (ev.type === "sieste" && ev.end == null) parts.push(`En cours · depuis ${dureeTxt((Date.now() - ev.time) / 60000)}`);
   if (ev.type === "sieste" && ev.end) parts.push(`${dureeTxt((ev.end - ev.time) / 60000)} · jusqu’à ${hhmm(ev.end)}`);
   if (ev.note) parts.push(ev.note);
   return parts.join(" · ");
@@ -217,6 +220,46 @@ function bindDelete() {
   }));
 }
 
+/* ---------- Sieste en cours ---------- */
+
+const ICON_MOON = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>`;
+const siesteEnCours = () => events.filter((e) => e.type === "sieste" && e.end == null).sort((a, b) => b.time - a.time)[0];
+
+function sleepNowCard(ev) {
+  const nom = esc(CFG.nomChiot || "Le chiot");
+  return `<div class="card sleep-now">
+    <div class="row-top">
+      <div class="ico">${ICON_MOON}</div>
+      <div class="txt">
+        <span class="lbl">Sieste en cours · endormie à ${hfr(ev.time)}</span>
+        <span class="val">${nom} dort depuis ${dureeTxt((Date.now() - ev.time) / 60000)}</span>
+      </div>
+    </div>
+    <div class="inline">
+      <label class="sr" for="wake">Heure du réveil</label>
+      <input id="wake" class="input" type="time" value="${nowHHMM()}" aria-label="Heure du réveil">
+      <button type="button" class="wake-btn" id="wakeBtn" data-id="${esc(ev.id)}">Elle s’est réveillée</button>
+    </div>
+  </div>`;
+}
+
+function bindWake() {
+  const b = $("#wakeBtn");
+  if (!b) return;
+  b.addEventListener("click", async () => {
+    const ev = events.find((e) => e.id === b.dataset.id);
+    if (!ev) return;
+    const end = hhmmToMs($("#wake").value || nowHHMM());
+    if (end <= ev.time) { toast("Le réveil doit être après l’endormissement"); return; }
+    b.disabled = true;
+    try {
+      await store.update(ev.id, { end });
+      toast(`Sieste terminée · ${dureeTxt((end - ev.time) / 60000)}`);
+      if (route.lastTab === "ajouter") location.hash = "#/";
+    } catch (err) { console.error(err); toast("Échec de l’enregistrement"); b.disabled = false; }
+  });
+}
+
 /* ---------- Écran : Accueil (aujourd'hui) et détail d'un jour passé ---------- */
 
 function renderJour(d0) {
@@ -238,6 +281,7 @@ function renderJour(d0) {
       lastHtml = `<span class="val">Pas encore noté</span></div>`;
     }
     const nextRdv = rdvs.filter((r) => r.time >= now - 3600000).sort((a, b) => a.time - b.time)[0];
+    const dort = siesteEnCours();
     top = `
     <div class="head">
       <div class="left">
@@ -251,6 +295,8 @@ function renderJour(d0) {
       </div>
       <div class="avatar">${ICON_PAW}</div>
     </div>
+
+    ${dort ? sleepNowCard(dort) : ""}
 
     <div class="card last">
       <div class="ico">${ICON_CLOCK}</div>
@@ -292,6 +338,7 @@ function renderJour(d0) {
     </div>`;
 
   $("#share")?.addEventListener("click", partagerLien);
+  bindWake();
   bindDelete();
 }
 
@@ -358,6 +405,8 @@ function renderAjouter() {
   form.who = form.who || (() => { try { return localStorage.getItem("chiot-who"); } catch { return null; } })() || PEOPLE[0]?.id;
   const t = form.type;
   const pressed = (b) => (b ? "true" : "false");
+  const dort = siesteEnCours();
+  const sMode = dort ? "terminee" : (form.sMode || "encours");
 
   $("#view").innerHTML = `
     <div class="formhead">
@@ -378,7 +427,28 @@ function renderAjouter() {
         </div>
       </div>
 
-      ${t === "sieste" ? `
+      ${t === "sieste" && dort ? sleepNowCard(dort) : ""}
+
+      ${t === "sieste" && !dort ? `
+        <div class="field">
+          <span class="eyebrow">La sieste…</span>
+          <div class="choices">
+            <button type="button" class="choice" data-smode="encours" aria-pressed="${pressed(sMode === "encours")}">Commence</button>
+            <button type="button" class="choice" data-smode="terminee" aria-pressed="${pressed(sMode === "terminee")}">Est terminée</button>
+          </div>
+        </div>` : ""}
+
+      ${t === "sieste" && sMode === "encours" ? `
+        <div class="field">
+          <label for="debut" class="eyebrow">Endormie à</label>
+          <div class="inline">
+            <input id="debut" class="input" type="time" value="${form.debut || nowHHMM()}" required>
+            <button type="button" class="btn-soft" id="nowDebut">Maintenant</button>
+          </div>
+          <span class="hint">Vous pourrez noter le réveil plus tard depuis l’accueil.</span>
+        </div>
+      ` : t === "sieste" ? `
+        ${dort ? `<span class="eyebrow">Ou noter une autre sieste déjà terminée</span>` : ""}
         <div class="grid2">
           <label>Endormie à<input class="input" type="time" id="debut" value="${form.debut || nowHHMM()}" required></label>
           <label>Réveillée à<input class="input" type="time" id="fin" value="${form.fin || nowHHMM()}" required></label>
@@ -443,7 +513,7 @@ function renderAjouter() {
 
       <button type="submit" class="save" id="save">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>
-        Enregistrer ${FEMININ[t] ? "la" : "le"} ${TYPES[t].label.toLowerCase()}
+        ${t === "sieste" && sMode === "encours" ? "Commencer la sieste" : `Enregistrer ${FEMININ[t] ? "la" : "le"} ${TYPES[t].label.toLowerCase()}`}
       </button>
     </form>`;
 
@@ -463,7 +533,9 @@ function renderAjouter() {
       if (key === "who") { try { localStorage.setItem("chiot-who", form.who); } catch {} }
       renderAjouter();
     }));
-  bind("type", "type"); bind("place", "place"); bind("eaten", "eaten"); bind("who", "who"); bind("dur", "dur");
+  bind("type", "type"); bind("place", "place"); bind("eaten", "eaten"); bind("who", "who"); bind("dur", "dur"); bind("smode", "sMode");
+  bindWake();
+  $("#nowDebut")?.addEventListener("click", () => { $("#debut").value = nowHHMM(); });
 
   $("#now")?.addEventListener("click", () => { $("#heure").value = nowHHMM(); });
 
@@ -483,7 +555,10 @@ function renderAjouter() {
     e.preventDefault();
     keep();
     const ev = { type: form.type, who: form.who || null, note: (form.note || "").trim(), createdAt: Date.now() };
-    if (form.type === "sieste") {
+    if (form.type === "sieste" && sMode === "encours") {
+      ev.time = hhmmToMs(form.debut);
+      ev.end = null;
+    } else if (form.type === "sieste") {
       ev.time = hhmmToMs(form.debut);
       let end = hhmmToMs(form.fin, ev.time);
       if (end < ev.time) end += DAY;
@@ -501,7 +576,7 @@ function renderAjouter() {
     $("#save").disabled = true;
     try {
       await store.add(ev);
-      toast(`${TYPES[form.type].label} enregistré${FEMININ[form.type] ? "e" : ""}`);
+      toast(ev.type === "sieste" && ev.end == null ? "Bonne sieste ! Notez le réveil depuis l’accueil" : `${TYPES[form.type].label} enregistré${FEMININ[form.type] ? "e" : ""}`);
       form.heure = form.debut = form.fin = form.note = form.qty = undefined;
       location.hash = "#/";
     } catch (err) {
@@ -687,6 +762,8 @@ function route() {
   route.lastTab = tab; route.lastHash = h;
 }
 
+const enSaisie = () => { const a = document.activeElement; return !!(a && a.closest && a.closest("#view") && /INPUT|TEXTAREA/.test(a.tagName)); };
+
 async function start() {
   if (CFG.firebase) {
     try { store = await firebaseStore(); }
@@ -700,12 +777,12 @@ async function start() {
     rdvs = all.filter((e) => e.type === "rdv");
     // Ne pas effacer un formulaire en cours de saisie
     // Ne pas effacer un formulaire en cours de saisie
-    if (route.lastTab !== "ajouter" && !(route.lastTab === "calendrier" && cal.adding)) route();
+    if (route.lastTab !== "ajouter" && !(route.lastTab === "calendrier" && cal.adding) && !enSaisie()) route();
   });
   window.addEventListener("hashchange", route);
   route();
   // Rafraîchit "il y a X min" chaque minute
-  setInterval(() => { if (route.lastTab === "accueil") renderAccueil(); }, 60000);
+  setInterval(() => { if (route.lastTab === "accueil" && !enSaisie()) renderAccueil(); }, 60000);
 }
 
 start();

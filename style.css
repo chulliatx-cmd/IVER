@@ -135,3 +135,14 @@ textarea.input{height:auto;padding:12px 14px;font-size:15px;font-weight:600;resi
 .day-h::first-letter{text-transform:uppercase}
 .daynav{display:flex;justify-content:space-between;gap:8px}
 .daynav .btn-soft{display:inline-flex;align-items:center;text-decoration:none;height:44px}
+.sleep-now{display:flex;flex-direction:column;gap:12px;background:#ECE8FB}
+.sleep-now .row-top{display:flex;align-items:center;gap:14px}
+.sleep-now .ico{width:44px;height:44px;border-radius:14px;background:var(--sieste);color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sleep-now .txt{display:flex;flex-direction:column;gap:2px;min-width:0}
+.sleep-now .lbl{font-size:13px;font-weight:700;color:#4B3A9E}
+.sleep-now .val{font-size:18px;font-weight:800;color:#2B1F66}
+.sleep-now .input{border-color:#CFC6F2}
+.wake-btn{height:52px;padding:0 16px;border:0;border-radius:14px;background:var(--sieste);color:#fff;font-weight:800;font-size:15px;cursor:pointer;white-space:nowrap}
+.wake-btn:disabled{opacity:.6}
+.hint{font-size:13px;font-weight:600;color:var(--muted)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
