@@ -762,6 +762,30 @@ function route() {
   route.lastTab = tab; route.lastHash = h;
 }
 
+/* ---------- Mise à jour automatique ----------
+   Chaque version de l'app porte un numéro (?v=… dans index.html, et version.json).
+   Quand l'app revient au premier plan, on vérifie si une version plus récente est en ligne
+   et on recharge la page si c'est le cas. */
+const APP_VERSION = new URL(import.meta.url).searchParams.get("v");
+async function verifierMiseAJour() {
+  if (!APP_VERSION) return;
+  try {
+    const r = await fetch("version.json?t=" + Date.now(), { cache: "no-store" });
+    const { v } = await r.json();
+    if (v && v !== APP_VERSION) {
+      // Une seule tentative par version, pour ne jamais boucler si le téléphone garde l'ancienne page.
+      let deja = null;
+      try { deja = sessionStorage.getItem("chiot-maj"); } catch {}
+      if (deja === v) return;
+      try { sessionStorage.setItem("chiot-maj", v); } catch {}
+      await fetch("./", { cache: "reload" }).catch(() => {});
+      await fetch("index.html", { cache: "reload" }).catch(() => {});
+      location.reload();
+    }
+  } catch {}
+}
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") verifierMiseAJour(); });
+
 const enSaisie = () => { const a = document.activeElement; return !!(a && a.closest && a.closest("#view") && /INPUT|TEXTAREA/.test(a.tagName)); };
 
 async function start() {
@@ -781,6 +805,7 @@ async function start() {
   });
   window.addEventListener("hashchange", route);
   route();
+  verifierMiseAJour();
   // Rafraîchit "il y a X min" chaque minute
   setInterval(() => { if (route.lastTab === "accueil" && !enSaisie()) renderAccueil(); }, 60000);
 }
