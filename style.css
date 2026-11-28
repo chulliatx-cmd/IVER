@@ -331,3 +331,26 @@ textarea.input{height:auto;padding:12px 14px;font-size:15px;font-weight:500;font
 :root[data-theme="light"] .sleep-now{border-color:var(--sieste-g2)}
 :root[data-theme="light"] .ti{background:rgba(255,255,255,.7)!important}
 .card[class*="t-"] .ti,.ev[class*="t-"] .ti{box-shadow:0 0 0 1px rgba(255,255,255,.06)}
+
+/* Entrées modifiables */
+.ev.editable{cursor:pointer;transition:transform .12s ease}
+.ev.editable:active{transform:scale(.98)}
+.ev.editable:focus-visible{outline:2.5px solid var(--pink);outline-offset:2px}
+.btn-soft.danger{color:var(--pink);border-color:var(--pink-soft);background:transparent;width:100%}
+
+/* Humeur du jour */
+.name-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.mood{height:34px;padding:0 12px 0 6px;border-radius:999px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700;cursor:pointer}
+.mood .mood-e{font-size:20px;line-height:1;transition:transform .2s}
+.mood:active .mood-e{transform:scale(1.3) rotate(-10deg)}
+.mood.vide{color:var(--muted);border-style:dashed}
+.mood.vide .mood-e{filter:grayscale(1);opacity:.7}
+.mood[aria-expanded=true]{border-color:var(--yellow);background:var(--yellow-soft)}
+.mood-picker{display:flex;flex-direction:column;gap:12px;animation:mood-in .25s cubic-bezier(.2,1.3,.4,1)}
+.mood-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.mood-opt{min-height:74px;border-radius:18px;border:1.5px solid var(--line);background:var(--card);color:var(--ink2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:12px;font-weight:700;cursor:pointer;padding:6px 2px;text-align:center}
+.mood-opt .mood-e{font-size:28px;line-height:1}
+.mood-opt[aria-pressed=true]{border:2px solid var(--yellow);background:var(--yellow-soft);color:var(--ink)}
+.mood-opt:active{transform:scale(.95)}
+@keyframes mood-in{from{opacity:0;transform:translateY(-8px) scale(.98)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.mood-picker{animation:none}}

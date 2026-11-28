@@ -94,6 +94,21 @@ let store;
 let events = [];
 let rdvs = [];
 let mots = [];
+let humeurs = [];
+
+/* ---------- Humeur du jour ---------- */
+const HUMEURS = {
+  joyeuse:  { e: "😄", label: "Joyeuse" },
+  joueuse:  { e: "🎾", label: "Joueuse" },
+  caline:   { e: "🥰", label: "Câline" },
+  zen:      { e: "😌", label: "Zen" },
+  fatiguee: { e: "😴", label: "Fatiguée" },
+  coquine:  { e: "😈", label: "Coquine" },
+  grognon:  { e: "😤", label: "Grognon" },
+  malade:   { e: "🤒", label: "Pas en forme" }
+};
+const humeurDu = (d0) => humeurs.filter((h) => h.time >= d0 && h.time < d0 + DAY && HUMEURS[h.mood]).sort((a, b) => b.time - a.time)[0];
+let humeurOuverte = false;
 
 /* ---------- Utilitaires ---------- */
 
@@ -158,7 +173,7 @@ const ICON_TRASH = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" 
 function eventRow(ev, withDelete) {
   const t = TYPES[ev.type] || TYPES.pipi;
   const p = person(ev.who);
-  return `<div class="ev t-${ev.type in TYPES ? ev.type : "pipi"}">
+  return `<div class="ev t-${ev.type in TYPES ? ev.type : "pipi"} editable" data-edit="${esc(ev.id)}" tabindex="0" role="button" aria-label="Modifier ${t.label} de ${hhmm(ev.time)}">
     <span class="t">${hhmm(ev.time)}</span>
     ${tIcon(ev.type, "md")}
     <div class="m"><b>${t.label}</b><span>${esc(detail(ev))}</span></div>
@@ -276,6 +291,13 @@ function weekAverages(today) {
   </div>`;
 }
 
+function bindEdit() {
+  $("#view").querySelectorAll("[data-edit]").forEach((el) => {
+    el.addEventListener("click", (e) => { if (!e.target.closest(".del")) ouvrirEdition(el.dataset.edit); });
+    el.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target === el) ouvrirEdition(el.dataset.edit); });
+  });
+}
+
 function bindDelete() {
   $("#view").querySelectorAll("[data-del]").forEach((b) => b.addEventListener("click", async () => {
     if (!confirm("Supprimer cette entrée ?")) return;
@@ -352,7 +374,12 @@ function renderJour(d0) {
         <div class="logo">
           <div class="mark">${ICON_PAW}</div>
           <div class="sub">
-            <h1 class="name">${esc(CFG.nomChiot || "Mon chiot")}</h1>
+            <div class="name-row">
+              <h1 class="name">${esc(CFG.nomChiot || "Mon chiot")}</h1>
+              ${(() => { const h = humeurDu(today); const m = h && HUMEURS[h.mood];
+                return `<button type="button" class="mood${m ? "" : " vide"}" id="mood" aria-expanded="${humeurOuverte}" aria-label="${m ? `Humeur du jour : ${m.label}. Changer` : "Choisir l’humeur du jour"}">
+                  <span class="mood-e" aria-hidden="true">${m ? m.e : "🙂"}</span><span class="mood-l">${m ? esc(m.label) : "Humeur ?"}</span></button>`; })()}
+            </div>
             <span class="sync ${store.online ? "" : "off"}">${store.online ? "Synchronisé" : "Mode local (non partagé)"}</span>
           </div>
         </div>
@@ -372,6 +399,14 @@ function renderJour(d0) {
       </div>
       <span class="eyebrow">${esc(dateTxt)}</span>
     </div>
+
+    ${humeurOuverte ? `<div class="card mood-picker" role="group" aria-label="Humeur du jour">
+      <span class="eyebrow">Comment va ${esc(CFG.nomChiot || "le chiot")} aujourd’hui ?</span>
+      <div class="mood-grid">
+        ${Object.entries(HUMEURS).map(([k, v]) => `<button type="button" class="mood-opt" data-mood="${k}" aria-pressed="${humeurDu(today)?.mood === k}">
+          <span class="mood-e" aria-hidden="true">${v.e}</span><span>${v.label}</span></button>`).join("")}
+      </div>
+    </div>` : ""}
 
     ${mots.length ? apercuMot() : ""}
 
@@ -394,7 +429,7 @@ function renderJour(d0) {
     <div class="formhead">
       <a href="#/historique" class="back" aria-label="Retour aux jours passés"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></a>
       <div class="left" style="display:flex;flex-direction:column;gap:2px;min-width:0">
-        <span class="eyebrow">Journée passée</span>
+        <span class="eyebrow">Journée passée${(() => { const h = humeurDu(d0); return h ? ` · ${HUMEURS[h.mood].e} ${HUMEURS[h.mood].label}` : ""; })()}</span>
         <h1 class="title day-h">${esc(dateTxt)}</h1>
       </div>
     </div>
@@ -411,12 +446,27 @@ function renderJour(d0) {
     <div class="list">
       <div class="row-between">
         <h2 class="h2">Détail de la journée</h2>
+        ${st.list.length ? `<span class="hint" style="font-size:12px">Touchez pour modifier</span>` : ""}
         ${isToday ? `<a href="#/historique" style="font-size:13px;font-weight:700">Jours passés</a>` : ""}
       </div>
       ${st.list.length ? st.list.map((e) => eventRow(e, true)).join("") : `<div class="empty-msg">${isToday ? "Rien de noté aujourd’hui. Appuyez sur « Ajouter »." : "Rien de noté ce jour-là."}</div>`}
     </div>`;
 
   $("#share")?.addEventListener("click", partagerLien);
+  $("#mood")?.addEventListener("click", () => { humeurOuverte = !humeurOuverte; renderAccueil(); });
+  $("#view").querySelectorAll("[data-mood]").forEach((b) => b.addEventListener("click", async () => {
+    const r = b.getBoundingClientRect();
+    const actuelle = humeurDu(startOfDay(Date.now()));
+    humeurOuverte = false;
+    try {
+      if (actuelle) await store.update(actuelle.id, { mood: b.dataset.mood, who: moi() || null, time: Date.now() });
+      else await store.add({ type: "humeur", mood: b.dataset.mood, who: moi() || null, time: Date.now(), createdAt: Date.now() });
+      eclat(r.left + r.width / 2, r.top + r.height / 2, "patte");
+      toast(`${HUMEURS[b.dataset.mood].e} ${CFG.nomChiot || "Le chiot"} est ${HUMEURS[b.dataset.mood].label.toLowerCase()} aujourd’hui`);
+    } catch (err) { console.error(err); toast("Échec de l’enregistrement"); }
+    renderAccueil();
+  }));
+  bindEdit();
   $("#theme")?.addEventListener("click", () => { setTheme(theme() === "light" ? "dark" : "light"); renderAccueil(); });
   bindWake();
   bindDelete();
@@ -461,6 +511,7 @@ function renderHistorique() {
             ${chip("repas", `${st.repas.length} repas`)}
             ${st.baladeMin ? chip("balade", `${dureeTxt(st.baladeMin)} de balade`) : ""}
             ${st.sleepMin ? chip("sieste", `${dureeTxt(st.sleepMin)} de sommeil`) : ""}
+            ${(() => { const h = humeurDu(d); return h ? `<span class="chip"><span aria-hidden="true">${HUMEURS[h.mood].e}</span>${HUMEURS[h.mood].label}</span>` : ""; })()}
           </div>
         </a>`;
       }).join("") : `<div class="empty-msg">Aucune journée notée pour l’instant.</div>`}
@@ -481,17 +532,44 @@ function hhmmToMs(v, ref = Date.now()) {
   return ms;
 }
 
+function resetForm() {
+  delete form.editId; delete form.retour; delete form.date;
+  form.heure = form.debut = form.fin = form.note = form.qty = form.sMode = undefined;
+  form.dur = 30; form.place = "dehors"; form.eaten = "tout";
+}
+// Ouvre le formulaire pré-rempli pour corriger une entrée
+function ouvrirEdition(id) {
+  const ev = events.find((e) => e.id === id);
+  if (!ev) return;
+  Object.assign(form, {
+    editId: id, retour: location.hash || "#/", type: ev.type in TYPES ? ev.type : "pipi",
+    who: ev.who || form.who, note: ev.note || "", date: ymd(ev.time),
+    heure: hhmm(ev.time), debut: hhmm(ev.time), fin: ev.end ? hhmm(ev.end) : undefined,
+    sMode: ev.type === "sieste" && ev.end == null ? "encours" : "terminee",
+    place: ev.place || "dehors", qty: ev.qty ?? "", eaten: ev.eaten || "tout",
+    dur: ev.type === "balade" && ev.end ? Math.round((ev.end - ev.time) / 60000) : 30
+  });
+  location.hash = "#/modifier";
+}
+// "AAAA-MM-JJ" + "HH:MM" -> timestamp
+function msDe(date, hm) {
+  const [y, m, d] = date.split("-").map(Number);
+  const [h, mi] = (hm || "00:00").split(":").map(Number);
+  return new Date(y, m - 1, d, h, mi).getTime();
+}
+
 function renderAjouter() {
   form.who = form.who || (() => { try { return localStorage.getItem("chiot-who"); } catch { return null; } })() || PEOPLE[0]?.id;
   const t = form.type;
   const pressed = (b) => (b ? "true" : "false");
-  const dort = siesteEnCours();
+  const edit = !!form.editId;
+  const dort = edit ? null : siesteEnCours();
   const sMode = dort ? "terminee" : (form.sMode || "encours");
 
   $("#view").innerHTML = `
     <div class="formhead">
-      <a href="#/" class="back" aria-label="Retour à l’accueil"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></a>
-      <h1 class="title">Nouvelle entrée</h1>
+      <a href="${edit ? esc(form.retour) : "#/"}" class="back" id="fback" aria-label="Retour"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></a>
+      <h1 class="title">${edit ? "Modifier" : "Nouvelle entrée"}</h1>
     </div>
 
     <form id="f" style="display:flex;flex-direction:column;gap:18px">
@@ -506,6 +584,12 @@ function renderAjouter() {
           }).join("")}
         </div>
       </div>
+
+      ${edit ? `
+        <div class="field">
+          <label for="date" class="eyebrow">Quel jour ?</label>
+          <input id="date" class="input" type="date" value="${esc(form.date)}" max="${ymd(Date.now())}" required>
+        </div>` : ""}
 
       ${t === "sieste" && dort ? sleepNowCard(dort) : ""}
 
@@ -593,8 +677,9 @@ function renderAjouter() {
 
       <button type="submit" class="save" id="save">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>
-        ${t === "sieste" && sMode === "encours" ? "Commencer la sieste" : `Enregistrer ${FEMININ[t] ? "la" : "le"} ${TYPES[t].label.toLowerCase()}`}
+        ${edit ? "Enregistrer les modifications" : t === "sieste" && sMode === "encours" ? "Commencer la sieste" : `Enregistrer ${FEMININ[t] ? "la" : "le"} ${TYPES[t].label.toLowerCase()}`}
       </button>
+      ${edit ? `<button type="button" class="btn-soft danger" id="fdel">Supprimer cette entrée</button>` : ""}
     </form>`;
 
   // Garde les valeurs saisies quand on change de type
@@ -605,6 +690,7 @@ function renderAjouter() {
     form.qty = $("#qte")?.value ?? form.qty;
     form.dur = $("#dur")?.value ?? form.dur;
     form.note = $("#note")?.value ?? form.note;
+    form.date = $("#date")?.value ?? form.date;
   };
   const bind = (attr, key) => $("#view").querySelectorAll(`[data-${attr}]`).forEach((b) =>
     b.addEventListener("click", () => {
@@ -621,7 +707,14 @@ function renderAjouter() {
   bindWake();
   $("#nowDebut")?.addEventListener("click", () => { $("#debut").value = nowHHMM(); });
 
-  $("#now")?.addEventListener("click", () => { $("#heure").value = nowHHMM(); });
+  $("#now")?.addEventListener("click", () => { $("#heure").value = nowHHMM(); if ($("#date")) $("#date").value = ymd(Date.now()); });
+  $("#fback")?.addEventListener("click", () => { if (edit) setTimeout(resetForm, 0); });
+  $("#fdel")?.addEventListener("click", async () => {
+    if (!confirm("Supprimer cette entrée ?")) return;
+    await store.remove(form.editId);
+    toast("Entrée supprimée");
+    const retour = form.retour; resetForm(); location.hash = retour;
+  });
 
   const updDuree = () => {
     const d = $("#debut"), f = $("#fin");
@@ -638,17 +731,21 @@ function renderAjouter() {
   $("#f").addEventListener("submit", async (e) => {
     e.preventDefault();
     keep();
-    const ev = { type: form.type, who: form.who || null, note: (form.note || "").trim(), createdAt: Date.now() };
+    const ev = { type: form.type, who: form.who || null, note: (form.note || "").trim() };
+    if (!edit) ev.createdAt = Date.now();
+    // En modification, l'heure s'applique au jour choisi ; sinon aujourd'hui (ou hier si l'heure est à venir)
+    const T = (hm, ref) => (edit ? msDe(form.date, hm) : hhmmToMs(hm, ref));
     if (form.type === "sieste" && sMode === "encours") {
-      ev.time = hhmmToMs(form.debut);
+      ev.time = T(form.debut);
       ev.end = null;
     } else if (form.type === "sieste") {
-      ev.time = hhmmToMs(form.debut);
-      let end = hhmmToMs(form.fin, ev.time);
+      ev.time = T(form.debut);
+      let end = T(form.fin, ev.time);
       if (end < ev.time) end += DAY;
       ev.end = end;
     } else {
-      ev.time = hhmmToMs(form.heure);
+      ev.time = T(form.heure);
+      if (edit) ev.end = null;
     }
     if (form.type === "pipi" || form.type === "caca") ev.place = form.place;
     if (form.type === "balade") {
@@ -658,6 +755,14 @@ function renderAjouter() {
     if (form.type === "repas") { ev.qty = form.qty ? Number(form.qty) : null; ev.eaten = form.eaten; }
 
     $("#save").disabled = true;
+    if (edit) {
+      try {
+        await store.update(form.editId, ev);
+        toast("Modifications enregistrées");
+        const retour = form.retour; resetForm(); location.hash = retour;
+      } catch (err) { console.error(err); toast("Échec de l’enregistrement"); $("#save").disabled = false; }
+      return;
+    }
     try {
       await store.add(ev);
       toast(ev.type === "sieste" && ev.end == null ? "Bonne sieste ! Notez le réveil depuis l’accueil" : `${TYPES[form.type].label} enregistré${FEMININ[form.type] ? "e" : ""}`);
@@ -681,7 +786,7 @@ function rdvRow(r) {
   const t = RDV[r.rdvType] || RDV.autre;
   const p = person(r.who);
   const sub = [dateLongue(r.time) + " à " + hfr(r.time), r.note].filter(Boolean).join(" · ");
-  return `<div class="ev t-rdv">
+  return `<div class="ev t-rdv editable" data-editrdv="${esc(r.id)}" tabindex="0" role="button" aria-label="Modifier ce rendez-vous">
     ${tIcon(r.rdvType in RDV ? r.rdvType : "autre", "md")}
     <div class="m"><b>${esc(t.label)}${r.title ? " · " + esc(r.title) : ""}</b><span>${esc(sub)}</span></div>
     <span class="who" style="background:${p.couleur}" title="${esc(p.nom)}">${esc(p.initiale)}</span>
@@ -726,7 +831,7 @@ function renderCalendrier() {
 
   const formHtml = cal.adding ? `
     <form id="rdvf" class="card" style="display:flex;flex-direction:column;gap:16px">
-      <h2 class="h2">Nouveau rendez-vous</h2>
+      <h2 class="h2">${cal.editId ? "Modifier le rendez-vous" : "Nouveau rendez-vous"}</h2>
       <div class="field">
         <span class="eyebrow">Type</span>
         <div class="choices">
@@ -757,6 +862,7 @@ function renderCalendrier() {
         <button type="button" class="btn-soft" id="rcancel">Annuler</button>
         <button type="submit" class="save" id="rsave" style="flex:1">Enregistrer</button>
       </div>
+      ${cal.editId ? `<button type="button" class="btn-soft danger" id="rdel">Supprimer ce rendez-vous</button>` : ""}
     </form>` : `
     <button type="button" class="save" id="radd">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
@@ -800,8 +906,28 @@ function renderCalendrier() {
   $("#view").querySelectorAll("[data-day]").forEach((b) => b.addEventListener("click", () => {
     keep(); cal.sel = Number(b.dataset.day); renderCalendrier();
   }));
-  $("#radd")?.addEventListener("click", () => { cal.adding = true; renderCalendrier(); $("#rdvf").scrollIntoView({ behavior: "smooth", block: "start" }); });
-  $("#rcancel")?.addEventListener("click", () => { cal.adding = false; cal.titre = cal.note = undefined; renderCalendrier(); });
+  $("#radd")?.addEventListener("click", () => { cal.adding = true; cal.editId = null; cal.titre = cal.note = undefined; renderCalendrier(); $("#rdvf").scrollIntoView({ behavior: "smooth", block: "start" }); });
+  $("#rcancel")?.addEventListener("click", () => { cal.adding = false; cal.editId = null; cal.titre = cal.note = undefined; renderCalendrier(); });
+  const ouvrirRdv = (id) => {
+    const r = rdvs.find((x) => x.id === id);
+    if (!r) return;
+    const d = new Date(r.time);
+    Object.assign(cal, { adding: true, editId: id, rdvType: r.rdvType in RDV ? r.rdvType : "autre", sel: startOfDay(r.time),
+      month: new Date(d.getFullYear(), d.getMonth(), 1).getTime(), heure: hhmm(r.time), titre: r.title || "", note: r.note || "", who: r.who || cal.who });
+    renderCalendrier();
+    $("#rdvf").scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+  $("#view").querySelectorAll("[data-editrdv]").forEach((el) => {
+    el.addEventListener("click", (e) => { if (!e.target.closest(".del")) ouvrirRdv(el.dataset.editrdv); });
+    el.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target === el) ouvrirRdv(el.dataset.editrdv); });
+  });
+  $("#rdel")?.addEventListener("click", async () => {
+    if (!confirm("Supprimer ce rendez-vous ?")) return;
+    await store.remove(cal.editId);
+    cal.adding = false; cal.editId = null; cal.titre = cal.note = undefined;
+    toast("Rendez-vous supprimé");
+    renderCalendrier();
+  });
   $("#view").querySelectorAll("[data-rdvtype]").forEach((b) => b.addEventListener("click", () => { keep(); cal.rdvType = b.dataset.rdvtype; renderCalendrier(); }));
   $("#view").querySelectorAll("[data-rwho]").forEach((b) => b.addEventListener("click", () => { keep(); cal.who = b.dataset.rwho; renderCalendrier(); }));
   $("#view").querySelectorAll("[data-delrdv]").forEach((b) => b.addEventListener("click", async () => {
@@ -815,13 +941,15 @@ function renderCalendrier() {
     const [yy, mm, dd] = $("#rdate").value.split("-").map(Number);
     const [h, mi] = $("#rheure").value.split(":").map(Number);
     const time = new Date(yy, mm - 1, dd, h, mi).getTime();
-    const r = { type: "rdv", rdvType: cal.rdvType, time, title: (cal.titre || "").trim(), note: (cal.note || "").trim(), who: cal.who || null, createdAt: Date.now() };
+    const r = { type: "rdv", rdvType: cal.rdvType, time, title: (cal.titre || "").trim(), note: (cal.note || "").trim(), who: cal.who || null };
+    const modif = cal.editId;
     $("#rsave").disabled = true;
     try {
-      await store.add(r);
-      cal.adding = false; cal.titre = cal.note = undefined;
+      if (modif) await store.update(modif, r);
+      else await store.add({ ...r, createdAt: Date.now() });
+      cal.adding = false; cal.editId = null; cal.titre = cal.note = undefined;
       cal.sel = startOfDay(time); cal.month = new Date(yy, mm - 1, 1).getTime();
-      toast("Rendez-vous ajouté");
+      toast(modif ? "Rendez-vous modifié" : "Rendez-vous ajouté");
       renderCalendrier();
     } catch (err) {
       console.error(err); toast("Échec de l’enregistrement"); $("#rsave").disabled = false;
@@ -945,13 +1073,16 @@ function renderMots() {
 function route() {
   let h = location.hash.replace(/^#\/?/, "");
   const jour = h.startsWith("jour/") ? Number(h.slice(5)) : null;
+  if ((h === "ajouter" || h.startsWith("ajouter/")) && form.editId) resetForm();
+  if (h === "modifier" && !form.editId) h = "ajouter";
+  if (h !== "modifier" && form.editId) resetForm();
   if (h.startsWith("ajouter/")) {
     const ty = h.slice(8);
     if (TYPES[ty]) form.type = ty;
     history.replaceState(null, "", "#/ajouter");
     h = "ajouter";
   }
-  const tab = jour ? "historique" : ["ajouter", "historique", "calendrier", "mots"].includes(h) ? h : "accueil";
+  const tab = jour ? "historique" : h === "modifier" ? "ajouter" : ["ajouter", "historique", "calendrier", "mots"].includes(h) ? h : "accueil";
   document.querySelectorAll(".tabbar a").forEach((a) => a.classList.toggle("on", a.dataset.tab === tab));
   $("#fab").classList.toggle("on", tab === "ajouter");
   if (tab === "ajouter") renderAjouter();
@@ -1115,7 +1246,8 @@ async function start() {
   }
   store.subscribe((list) => {
     const all = list.filter((e) => typeof e.time === "number");
-    events = all.filter((e) => e.type !== "rdv" && e.type !== "mot" && e.type !== "parcours");
+    events = all.filter((e) => e.type !== "rdv" && e.type !== "mot" && e.type !== "parcours" && e.type !== "humeur");
+    humeurs = all.filter((e) => e.type === "humeur");
     rdvs = all.filter((e) => e.type === "rdv");
     mots = all.filter((e) => e.type === "mot");
     majBadgeMots();
