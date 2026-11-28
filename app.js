@@ -613,6 +613,10 @@ function renderAjouter() {
       if (key === "who") { try { localStorage.setItem("chiot-who", form.who); } catch {} }
       renderAjouter();
     }));
+  $("#view").querySelectorAll("[data-type]").forEach((b) => b.addEventListener("click", () => {
+    const r = b.getBoundingClientRect();
+    if (b.dataset.type !== form.type) eclat(r.left + r.width / 2, r.top + r.height / 2, b.dataset.type);
+  }));
   bind("type", "type"); bind("place", "place"); bind("eaten", "eaten"); bind("who", "who"); bind("dur", "dur"); bind("smode", "sMode");
   bindWake();
   $("#nowDebut")?.addEventListener("click", () => { $("#debut").value = nowHHMM(); });
@@ -968,54 +972,104 @@ let dernierTap = null;
 document.addEventListener("pointerdown", (e) => { dernierTap = { x: e.clientX, y: e.clientY, t: Date.now() }; }, { capture: true, passive: true });
 
 function coupDePatte(afficher) {
+  // Type visé (pastille « Pipi », « Caca »…) lu avant l'affichage, qui nettoie l'adresse
+  const vise = (location.hash.match(/ajouter\/(\w+)/) || [])[1];
   afficher();
-  const reduit = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
   const view = $("#view");
-  if (reduit || !view.animate) return;
+  if (mouvementReduit() || !view.animate) return;
   window.scrollTo(0, 0);
   view.animate([{ opacity: 0, transform: "translateY(10px)" }, { opacity: 1, transform: "none" }],
     { duration: 200, easing: "cubic-bezier(.2,.7,.3,1)" });
-
   const tap = dernierTap && Date.now() - dernierTap.t < 1500 ? dernierTap : null;
   dernierTap = null;
   if (!tap) return;
+  eclat(tap.x, tap.y, TYPES[vise] ? vise : (/ajouter/.test(location.hash) ? "patte-jaune" : "patte"));
+}
+
+const mouvementReduit = () => window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+const hasard = (a, b) => a + Math.random() * (b - a);
+
+// Petites formes pleines pour les éclats
+const FORMES = {
+  goutte: '<path d="M12 2.5c3.6 4.6 7 8.2 7 12.2a7 7 0 0 1-14 0c0-4 3.4-7.6 7-12.2z"/>',
+  pate: '<path d="M3.5 20h17a3 3 0 0 0 0-6h-1.2a3 3 0 0 0-1-5.6H16a2.6 2.6 0 0 0-2-4.4c.3 1.6-.6 2.4-1.9 2.4h-1A3 3 0 0 0 9.5 12H7.6a3 3 0 0 0-4.1 8z"/>',
+  z: '<path d="M5 5h14L5 19h14" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/>'
+};
+const formeSvg = (f) => `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">${f === "patte" ? PATTE : FORMES[f]}</svg>`;
+
+// Éclat au point touché : grosse icône tamponnée + particules adaptées au type
+function eclat(x, y, kind) {
+  if (mouvementReduit()) return;
   const fx = $("#fx");
-  const couleur = /ajouter/.test(location.hash) ? "var(--yellow)" : "var(--pink)";
+  if (!fx || !fx.animate) return;
   const els = [];
+  const cfg = {
+    pipi:   { couleur: "var(--pipi)",   n: 13, forme: "goutte", taille: [13, 24], dist: [55, 120], gravite: 70 },
+    caca:   { couleur: "var(--caca)",   n: 10, forme: "pate",   taille: [18, 30], dist: [50, 110], gravite: 90 },
+    repas:  { couleur: "#C8873F",       n: 16, forme: "croquette", taille: [10, 16], dist: [45, 105], gravite: 140 },
+    sieste: { couleur: "var(--sieste)", n: 8,  forme: "z",      taille: [14, 24], dist: [50, 105], gravite: -60 },
+    balade: { couleur: "var(--balade)", n: 9,  forme: "patte",  taille: [16, 24], dist: [50, 105], gravite: 20 },
+    "patte-jaune": { couleur: "var(--yellow)", n: 10, forme: "rond", taille: [6, 16], dist: [46, 100], gravite: 0 },
+    patte:  { couleur: "var(--pink)",   n: 10, forme: "rond",   taille: [6, 16], dist: [46, 100], gravite: 0 }
+  }[kind] || {};
 
-  // la patte
-  const patte = document.createElement("div");
-  patte.className = "fx-paw";
-  patte.style.cssText = `left:${tap.x}px;top:${tap.y}px;color:${couleur}`;
-  patte.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${PATTE}</svg>`;
-  fx.appendChild(patte); els.push(patte);
-  const rot = Math.round(Math.random() * 40 - 20);
-  patte.animate([
+  // le tampon central : l'icône du type, ou la patte
+  const tampon = document.createElement("div");
+  tampon.className = "fx-paw";
+  tampon.style.cssText = `left:${x}px;top:${y}px;color:${cfg.couleur}`;
+  tampon.innerHTML = TYPES[kind] ? svgIcon(kind, 78).replace('class="ic ', 'class="ic fx-ic ') : `<svg viewBox="0 0 24 24" aria-hidden="true">${PATTE}</svg>`;
+  fx.appendChild(tampon); els.push(tampon);
+  const rot = Math.round(hasard(-20, 20));
+  tampon.animate([
     { transform: `translate(-50%,-50%) scale(.2) rotate(${rot}deg)`, opacity: 1 },
-    { transform: `translate(-50%,-50%) scale(1.15) rotate(${rot}deg)`, opacity: 1, offset: .35 },
-    { transform: `translate(-50%,-50%) scale(1) rotate(${rot}deg)`, opacity: .9, offset: .6 },
+    { transform: `translate(-50%,-50%) scale(1.2) rotate(${rot}deg)`, opacity: 1, offset: .35 },
+    { transform: `translate(-50%,-50%) scale(1) rotate(${rot}deg)`, opacity: .95, offset: .6 },
     { transform: `translate(-50%,-50%) scale(1.05) rotate(${rot}deg)`, opacity: 0 }
-  ], { duration: 380, easing: "ease-out", fill: "forwards" });
+  ], { duration: 420, easing: "ease-out", fill: "forwards" });
 
-  // les éclaboussures
-  const n = 10;
-  for (let i = 0; i < n; i++) {
+  for (let i = 0; i < cfg.n; i++) {
     const g = document.createElement("i");
-    g.className = "fx-drop";
-    const ang = (i / n) * Math.PI * 2 + Math.random() * .5;
-    const dist = 46 + Math.random() * 54;
-    const taille = 6 + Math.random() * 10;
-    g.style.cssText = `left:${tap.x}px;top:${tap.y}px;width:${taille}px;height:${taille}px;background:${couleur}`;
-    fx.appendChild(g); els.push(g);
+    const ang = (i / cfg.n) * Math.PI * 2 + hasard(0, .6);
+    const dist = hasard(...cfg.dist);
+    const t = hasard(...cfg.taille);
     const dx = Math.cos(ang) * dist, dy = Math.sin(ang) * dist;
-    const deg = ang * 180 / Math.PI;
+    g.className = "fx-part";
+    g.style.cssText = `left:${x}px;top:${y}px;width:${t}px;height:${t}px;color:${cfg.couleur}`;
+    let rotation = 0, depart = "";
+    if (cfg.forme === "rond") { g.style.background = cfg.couleur; g.style.borderRadius = "50%"; depart = `rotate(${ang * 57.3}deg) scale(1.8,.6)`; }
+    else if (cfg.forme === "croquette") {
+      g.style.background = cfg.couleur; g.style.borderRadius = "45% 55% 50% 50%";
+      g.style.boxShadow = "inset -2px -2px 0 rgba(0,0,0,.25)"; g.style.height = `${t * .8}px`;
+      rotation = hasard(-360, 360);
+    } else {
+      g.innerHTML = formeSvg(cfg.forme);
+      // la goutte part la pointe vers l'arrière
+      rotation = cfg.forme === "goutte" ? ang * 57.3 + 90 : hasard(-50, 50);
+    }
+    fx.appendChild(g); els.push(g);
+    const base = `translate(-50%,-50%)`;
+    const r0 = depart || `rotate(${cfg.forme === "goutte" ? rotation : 0}deg) scale(.5)`;
     g.animate([
-      { transform: `translate(-50%,-50%) rotate(${deg}deg) scale(1.8,.6)`, opacity: 1 },
-      { transform: `translate(calc(-50% + ${dx * .7}px),calc(-50% + ${dy * .7}px)) rotate(${deg}deg) scale(1.2,.9)`, opacity: 1, offset: .45 },
-      { transform: `translate(calc(-50% + ${dx}px),calc(-50% + ${dy}px)) rotate(${deg}deg) scale(.4)`, opacity: 0 }
-    ], { duration: 320 + Math.random() * 80, easing: "cubic-bezier(.15,.8,.3,1)", fill: "forwards" });
+      { transform: `${base} ${r0}`, opacity: 1 },
+      { transform: `translate(calc(-50% + ${dx * .75}px),calc(-50% + ${dy * .75 - Math.abs(cfg.gravite) * .15}px)) rotate(${rotation * .6}deg) scale(1)`, opacity: 1, offset: .5 },
+      { opacity: 1, offset: .75 },
+      { transform: `translate(calc(-50% + ${dx}px),calc(-50% + ${dy + cfg.gravite}px)) rotate(${rotation}deg) scale(.6)`, opacity: 0 }
+    ], { duration: hasard(420, 560), easing: "cubic-bezier(.2,.7,.4,1)", fill: "forwards" });
   }
-  setTimeout(() => els.forEach((e) => e.remove()), 480);
+
+  // un peu d'odeur pour le caca
+  if (kind === "caca") {
+    for (const dx of [-18, 0, 18]) {
+      const o = document.createElement("i");
+      o.className = "fx-part";
+      o.style.cssText = `left:${x + dx}px;top:${y - 30}px;width:14px;height:26px;color:var(--caca)`;
+      o.innerHTML = '<svg viewBox="0 0 10 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M5 22c-3-2.5 3-4.5 0-7s3-4.5 0-7 3-4.5 0-6"/></svg>';
+      fx.appendChild(o); els.push(o);
+      o.animate([{ transform: "translate(-50%,0)", opacity: 0 }, { transform: "translate(-50%,-14px)", opacity: .9, offset: .4 }, { transform: "translate(-50%,-34px)", opacity: 0 }],
+        { duration: 650, delay: 80 + (dx + 18) * 4, easing: "ease-out", fill: "both" });
+    }
+  }
+  setTimeout(() => els.forEach((e) => e.remove()), 900);
 }
 
 /* ---------- Thème clair / sombre (mémorisé sur chaque téléphone) ---------- */
