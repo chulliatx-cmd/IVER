@@ -19,30 +19,30 @@ const RDV = {
 };
 /* ---------- Icônes (24×24, trait) ---------- */
 const ICONS = {
-  // goutte
-  pipi: '<path d="M12 3.2c3.2 4.1 6.2 7.4 6.2 11a6.2 6.2 0 0 1-12.4 0c0-3.6 3-6.9 6.2-11z"/><path d="M9.3 14.6a2.8 2.8 0 0 0 2.4 2.6"/>',
+  // goutte (+ reflet)
+  pipi: '<path d="M12 3.2c3.2 4.1 6.2 7.4 6.2 11a6.2 6.2 0 0 1-12.4 0c0-3.6 3-6.9 6.2-11z"/><path class="reflet" d="M9.3 14.6a2.8 2.8 0 0 0 2.4 2.6"/>',
   // petit tas en trois étages
-  caca: '<path d="M4.8 19.6h14.4a2.4 2.4 0 0 0 0-4.8H4.8a2.4 2.4 0 0 0 0 4.8z"/><path d="M6.9 14.8a2.3 2.3 0 0 1 0-4.6h10.2a2.3 2.3 0 0 1 0 4.6"/><path d="M9 10.2a2.4 2.4 0 0 1 2.4-2.7c1.2 0 1.8-.9 1.6-2.6 1.9.6 2.7 2 2.6 3.2a2.2 2.2 0 0 1-.6 2.1"/>',
+  caca: '<path d="M4.8 19.6h14.4a2.4 2.4 0 0 0 0-4.8H4.8a2.4 2.4 0 0 0 0 4.8z"/><path d="M6.9 14.8a2.3 2.3 0 0 1 0-4.6h10.2a2.3 2.3 0 0 1 0 4.6"/><path class="pointe" d="M9 10.2a2.4 2.4 0 0 1 2.4-2.7c1.2 0 1.8-.9 1.6-2.6 1.9.6 2.7 2 2.6 3.2a2.2 2.2 0 0 1-.6 2.1"/>',
   // gamelle + croquettes
-  repas: '<path d="M3 12h18l-1.6 5.6a2.6 2.6 0 0 1-2.5 1.9H7.1a2.6 2.6 0 0 1-2.5-1.9z"/><circle cx="8.5" cy="8.7" r="1.4"/><circle cx="12.3" cy="7.4" r="1.4"/><circle cx="15.8" cy="9" r="1.4"/>',
+  repas: '<path d="M3 12h18l-1.6 5.6a2.6 2.6 0 0 1-2.5 1.9H7.1a2.6 2.6 0 0 1-2.5-1.9z"/><circle class="k k1" cx="8.5" cy="8.7" r="1.4"/><circle class="k k2" cx="12.3" cy="7.4" r="1.4"/><circle class="k k3" cx="15.8" cy="9" r="1.4"/>',
   // lune + z
-  sieste: '<path d="M18.5 15.2A7.5 7.5 0 1 1 9 5a6 6 0 0 0 9.5 10.2z"/><path d="M15 3.5h3.5L15 7.5h3.5"/>',
+  sieste: '<path class="lune" d="M18.5 15.2A7.5 7.5 0 1 1 9 5a6 6 0 0 0 9.5 10.2z"/><path class="z" d="M15 3.5h3.5L15 7.5h3.5"/>',
   // empreinte de patte
-  balade: '<circle cx="6.6" cy="10" r="1.7"/><circle cx="10" cy="6.4" r="1.7"/><circle cx="14" cy="6.4" r="1.7"/><circle cx="17.4" cy="10" r="1.7"/><path d="M12 11.6c2.3 0 5 3.2 5 5.3 0 1.6-1.2 2.5-2.6 2.5-1 0-1.6-.6-2.4-.6s-1.4.6-2.4.6C8.2 19.4 7 18.5 7 16.9c0-2.1 2.7-5.3 5-5.3z"/>',
+  balade: '<circle class="o o1" cx="6.6" cy="10" r="1.7"/><circle class="o o2" cx="10" cy="6.4" r="1.7"/><circle class="o o3" cx="14" cy="6.4" r="1.7"/><circle class="o o4" cx="17.4" cy="10" r="1.7"/><path class="coussin" d="M12 11.6c2.3 0 5 3.2 5 5.3 0 1.6-1.2 2.5-2.6 2.5-1 0-1.6-.6-2.4-.6s-1.4.6-2.4.6C8.2 19.4 7 18.5 7 16.9c0-2.1 2.7-5.3 5-5.3z"/>',
   // goutte barrée (accident)
   accident: '<path d="M12 3.2c3.2 4.1 6.2 7.4 6.2 11a6.2 6.2 0 0 1-12.4 0c0-3.6 3-6.9 6.2-11z"/><path d="M4 4l16 16"/>',
   // stéthoscope
-  veto: '<path d="M6 3v5a4 4 0 0 0 8 0V3"/><path d="M10 12v2.5a4.5 4.5 0 0 0 9 0V12"/><circle cx="19" cy="10" r="2"/>',
-  // ciseaux
-  toiletteur: '<circle cx="6" cy="17" r="2.6"/><circle cx="6" cy="7" r="2.6"/><path d="M8.2 8.4 20 17M8.2 15.6 20 7"/>',
-  // seringue
-  vaccin: '<g transform="rotate(-45 12 12)"><rect x="6" y="8.6" width="11.4" height="6.8" rx="1.6"/><path d="M0.8 12H6M17.4 12h3.6M21 8.4v7.2M9.6 8.6v2.6M12.8 8.6v2.6"/></g>',
+  veto: '<path d="M6 3v5a4 4 0 0 0 8 0V3"/><path d="M10 12v2.5a4.5 4.5 0 0 0 9 0V12"/><circle class="pavillon" cx="19" cy="10" r="2"/>',
+  // ciseaux (deux lames qui pivotent)
+  toiletteur: '<g class="lame lameA"><circle cx="6" cy="17" r="2.6"/><path d="M8.2 15.6 20 7"/></g><g class="lame lameB"><circle cx="6" cy="7" r="2.6"/><path d="M8.2 8.4 20 17"/></g>',
+  // seringue (le piston s'enfonce)
+  vaccin: '<g transform="rotate(-45 12 12)"><rect x="6" y="8.6" width="11.4" height="6.8" rx="1.6"/><path d="M0.8 12H6M9.6 8.6v2.6M12.8 8.6v2.6"/><path class="piston" d="M17.4 12h3.6M21 8.4v7.2"/></g>',
   // calendrier
-  autre: '<rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/>'
+  autre: '<rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17"/><path class="anneau" d="M8 3v4M16 3v4"/>'
 };
 const ACCIDENT = { label: "Accident", color: "var(--pink)", bg: "var(--pink-soft)" };
 const svgIcon = (k, size = 22) =>
-  `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[k] || ICONS.autre}</svg>`;
+  `<svg class="ic ic-${k}" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[k] || ICONS.autre}</svg>`;
 // Icône dans une pastille teintée. taille : xs (pastilles), sm (stats), md (liste), lg (boutons de type)
 function tIcon(k, taille = "md") {
   const t = TYPES[k] || RDV[k] || (k === "accident" ? ACCIDENT : RDV.autre);
@@ -198,7 +198,7 @@ function statTiles(st, isToday) {
       v: st.balades.length ? dureeTxt(st.baladeMin) : "0 min",
       s: st.balades.length ? `${st.balades.length} ${plur(st.balades.length, "balade")} · dernière à ${hfr(st.balades[0].time)}` : rien("aucune") }
   ];
-  return `<div class="stats">
+  return `<div class="stats live">
     ${tiles.map((s) => `<div class="card stat${s.wide ? " wide" : ""}">
       <div class="k">${tIcon(s.c, "sm")}${s.k}</div>
       <span class="v">${s.v}</span><span class="s">${s.s}</span>
@@ -289,9 +289,9 @@ const siesteEnCours = () => events.filter((e) => e.type === "sieste" && e.end ==
 
 function sleepNowCard(ev) {
   const nom = esc(CFG.nomChiot || "Le chiot");
-  return `<div class="card sleep-now">
+  return `<div class="card sleep-now live">
     <div class="row-top">
-      <div class="ico">${ICON_MOON}</div>
+      <div class="ico">${svgIcon("sieste", 24)}</div>
       <div class="txt">
         <span class="lbl">Sieste en cours · endormie à ${hfr(ev.time)}</span>
         <span class="val">${nom} dort depuis ${dureeTxt((Date.now() - ev.time) / 60000)}</span>
@@ -365,7 +365,7 @@ function renderJour(d0) {
         </button>
         </div>
       </div>
-      <div class="pills" aria-label="Ajout rapide">
+      <div class="pills live" aria-label="Ajout rapide">
         ${Object.entries(TYPES).map(([id, v]) => `<a class="pill" href="#/ajouter/${id}">${tIcon(id, "xs")}${v.label}</a>`).join("")}
       </div>
       <span class="eyebrow">${esc(dateTxt)}</span>
@@ -373,12 +373,12 @@ function renderJour(d0) {
 
     ${dort ? sleepNowCard(dort) : ""}
 
-    <div class="card last">
+    <div class="card last live">
       <div class="ico">${svgIcon("pipi", 24)}</div>
       <div class="txt"><span class="lbl">Dernier pipi</span>${lastHtml}
     </div>
 
-    ${nextRdv ? `<a href="#/calendrier" class="card rdv-next">
+    ${nextRdv ? `<a href="#/calendrier" class="card rdv-next live">
       <div class="ico" style="background:${RDV[nextRdv.rdvType]?.color || "#9B98A6"};color:#0A0A0F">${svgIcon(nextRdv.rdvType in RDV ? nextRdv.rdvType : "autre", 24)}</div>
       <div class="txt"><span class="lbl">Prochain rendez-vous</span>
         <span class="val">${esc(RDV[nextRdv.rdvType]?.label || "Rendez-vous")}${nextRdv.title ? " · " + esc(nextRdv.title) : ""}</span>
@@ -496,7 +496,7 @@ function renderAjouter() {
         <div class="types">
           ${Object.entries(TYPES).map(([id, v]) => {
             const on = id === t;
-            return `<button type="button" class="type" data-type="${id}" aria-pressed="${pressed(on)}"
+            return `<button type="button" class="type${on ? " live" : ""}" data-type="${id}" aria-pressed="${pressed(on)}"
               style="${on ? `border-color:${v.color};background:${v.bg};color:${v.ink}` : ""}">
               ${svgIcon(id, 26)}${v.label}</button>`;
           }).join("")}
