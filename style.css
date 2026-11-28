@@ -315,3 +315,5 @@ textarea.input{height:auto;padding:12px 14px;font-size:15px;font-weight:500;font
 .leaflet-bar{border:1px solid var(--line)!important;border-radius:12px!important;overflow:hidden}
 .moi-pulse{animation:moi 1.6s ease-out infinite}
 @keyframes moi{0%{stroke-opacity:1;stroke-width:2}100%{stroke-opacity:0;stroke-width:14}}
+.leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.82) contrast(.92) saturate(.6)}
+:root[data-theme="light"] .leaflet-tile-pane{filter:saturate(.75) contrast(.95)}
