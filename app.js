@@ -93,6 +93,7 @@ async function firebaseStore() {
 let store;
 let events = [];
 let rdvs = [];
+let mots = [];
 
 /* ---------- Utilitaires ---------- */
 
@@ -142,7 +143,7 @@ function detail(ev) {
   return parts.join(" · ");
 }
 
-const ICON_PAW = `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7.2 8.6c0-2.6 2.1-4.1 4.8-4.1s4.8 1.5 4.8 4.1v4c0 3.7-2.1 6.6-4.8 6.6s-4.8-2.9-4.8-6.6z"/><path d="M7.4 6.1C5.4 4.8 2.8 5.9 2.8 8.7c0 2.4 1 4.9 2.6 5.4 1.2.4 2-.6 2-2.1z" fill="currentColor"/><path d="M16.6 6.1c2-1.3 4.6-.2 4.6 2.6 0 2.4-1 4.9-2.6 5.4-1.2.4-2-.6-2-2.1z" fill="currentColor"/><circle cx="10" cy="10.4" r="1" fill="currentColor" stroke="none"/><circle cx="14" cy="10.4" r="1" fill="currentColor" stroke="none"/><path d="M10.6 13.2h2.8c.4 0 .6.5.3.8l-1.4 1.3-1.4-1.3c-.3-.3-.1-.8.3-.8z" fill="currentColor"/><path d="M12 15.3v.9M10.4 16.6c.8.6 1.4.4 1.6-.1.2.5.8.7 1.6.1"/></svg>`;
+const ICON_PAW = `<svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true" style="transform:rotate(12deg)"><circle cx="6.4" cy="10.2" r="2.1"/><circle cx="9.9" cy="6.2" r="2.1"/><circle cx="14.1" cy="6.2" r="2.1"/><circle cx="17.6" cy="10.2" r="2.1"/><path d="M12 11.4c2.6 0 5.6 3.5 5.6 5.9 0 1.8-1.4 2.8-2.9 2.8-1.1 0-1.8-.7-2.7-.7s-1.6.7-2.7.7c-1.5 0-2.9-1-2.9-2.8 0-2.4 3-5.9 5.6-5.9z"/></svg>`;
 const ICON_CLOCK = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>`;
 const ICON_CAL = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>`;
 const dateLongue = (ms) => {
@@ -370,6 +371,8 @@ function renderJour(d0) {
       </div>
       <span class="eyebrow">${esc(dateTxt)}</span>
     </div>
+
+    ${motsNonLus()[0] ? apercuMot(motsNonLus()[0], motsNonLus().length) : ""}
 
     ${dort ? sleepNowCard(dort) : ""}
 
@@ -821,6 +824,110 @@ function renderCalendrier() {
   });
 }
 
+/* ---------- Écran : Mots (post-it entre nous) ---------- */
+
+const moi = () => { try { return localStorage.getItem("chiot-who"); } catch { return null; } } ;
+const vuMots = () => { try { return Number(localStorage.getItem("chiot-mots-vu")) || 0; } catch { return 0; } };
+// Mots écrits par l'autre depuis la dernière visite de l'onglet
+function motsNonLus() {
+  const me = moi(), vu = vuMots();
+  return mots.filter((m) => m.time > vu && (!me || m.who !== me)).sort((a, b) => b.time - a.time);
+}
+function majBadgeMots() {
+  const a = document.querySelector('.tabbar a[data-tab="mots"]');
+  if (!a) return;
+  const n = route.lastTab === "mots" ? 0 : motsNonLus().length;
+  let b = a.querySelector(".tab-badge");
+  if (!n) { b?.remove(); return; }
+  if (!b) { b = document.createElement("span"); b.className = "tab-badge"; a.appendChild(b); }
+  b.textContent = n > 9 ? "9+" : String(n);
+  b.setAttribute("aria-label", `${n} nouveau${n > 1 ? "x" : ""} mot${n > 1 ? "s" : ""}`);
+}
+const couleurMot = (who) => (PEOPLE.findIndex((p) => p.id === who) === 1 ? "rose" : "jaune");
+
+function apercuMot(m, n) {
+  const p = person(m.who);
+  return `<a href="#/mots" class="postit-apercu ${couleurMot(m.who)}">
+    <span class="pa-top">${n > 1 ? `${n} nouveaux mots` : "Nouveau mot"} de ${esc(p.nom || "l’autre")}</span>
+    <span class="pa-txt">${esc(m.text.length > 90 ? m.text.slice(0, 90) + "…" : m.text)}</span>
+  </a>`;
+}
+
+const brouillon = { text: "" };
+
+function renderMots() {
+  const me = moi() || PEOPLE[0]?.id;
+  brouillon.who = brouillon.who || me;
+  const liste = [...mots].sort((a, b) => b.time - a.time);
+  const vuAvant = vuMots();
+  try { localStorage.setItem("chiot-mots-vu", String(Date.now())); } catch {}
+  majBadgeMots();
+  const pressed = (b) => (b ? "true" : "false");
+  const quand = (ms) => {
+    const min = (Date.now() - ms) / 60000;
+    if (min < 60) return ilYa(ms);
+    if (startOfDay(ms) === startOfDay(Date.now())) return `aujourd’hui à ${hfr(ms)}`;
+    if (startOfDay(ms) === startOfDay(Date.now()) - DAY) return `hier à ${hfr(ms)}`;
+    return new Date(ms).toLocaleDateString("fr-FR", { day: "numeric", month: "short" }) + ` à ${hfr(ms)}`;
+  };
+
+  $("#view").innerHTML = `
+    <h1 class="title">Mots</h1>
+
+    <form id="motf" class="card" style="display:flex;flex-direction:column;gap:14px">
+      <label for="mot" class="eyebrow">Laisser un post-it</label>
+      <textarea id="mot" class="input postit-input ${couleurMot(brouillon.who)}" rows="3" maxlength="280" placeholder="Ex. Iver a mangé à 12 h, pense à racheter des croquettes…">${esc(brouillon.text)}</textarea>
+      <div class="choices">
+        ${PEOPLE.map((p) => `<button type="button" class="choice" data-mwho="${esc(p.id)}" aria-pressed="${pressed(brouillon.who === p.id)}">
+          <span class="who" style="background:${p.couleur}">${esc(p.initiale)}</span>${esc(p.nom)}</button>`).join("")}
+      </div>
+      <button type="submit" class="save" id="msave">Coller le post-it</button>
+    </form>
+
+    <div class="postits">
+      ${liste.length ? liste.map((m, i) => {
+        const p = person(m.who);
+        const neuf = m.time > vuAvant && m.who !== me;
+        const rot = [-2.2, 1.6, -1.2, 2.4, -1.8, 1.1][i % 6];
+        return `<div class="postit ${couleurMot(m.who)}${neuf ? " neuf" : ""}" style="--rot:${rot}deg">
+          <span class="scotch" aria-hidden="true"></span>
+          <p>${esc(m.text)}</p>
+          <div class="postit-pied">
+            <span class="who" style="background:${p.couleur}" title="${esc(p.nom)}">${esc(p.initiale)}</span>
+            <span>${esc(quand(m.time))}</span>
+            <button class="del" data-delmot="${esc(m.id)}" aria-label="Décoller ce post-it">${ICON_TRASH}</button>
+          </div>
+        </div>`;
+      }).join("") : `<div class="empty-msg" style="grid-column:1/-1">Aucun post-it pour l’instant. Laissez-vous un petit mot !</div>`}
+    </div>`;
+
+  const ta = $("#mot");
+  ta.addEventListener("input", () => { brouillon.text = ta.value; });
+  $("#view").querySelectorAll("[data-mwho]").forEach((b) => b.addEventListener("click", () => {
+    brouillon.text = ta.value; brouillon.who = b.dataset.mwho;
+    try { localStorage.setItem("chiot-who", brouillon.who); } catch {}
+    renderMots();
+  }));
+  $("#view").querySelectorAll("[data-delmot]").forEach((b) => b.addEventListener("click", async () => {
+    if (!confirm("Décoller ce post-it ?")) return;
+    await store.remove(b.dataset.delmot);
+    toast("Post-it décollé");
+  }));
+  $("#motf").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const text = ta.value.trim();
+    if (!text) { ta.focus(); return; }
+    $("#msave").disabled = true;
+    try {
+      await store.add({ type: "mot", text, who: brouillon.who || null, time: Date.now(), createdAt: Date.now() });
+      brouillon.text = "";
+      try { localStorage.setItem("chiot-mots-vu", String(Date.now())); } catch {}
+      toast("Post-it collé");
+      renderMots();
+    } catch (err) { console.error(err); toast("Échec de l’enregistrement"); $("#msave").disabled = false; }
+  });
+}
+
 /* ---------- Routeur ---------- */
 
 function route() {
@@ -832,16 +939,18 @@ function route() {
     history.replaceState(null, "", "#/ajouter");
     h = "ajouter";
   }
-  const tab = jour ? "historique" : ["ajouter", "historique", "calendrier"].includes(h) ? h : "accueil";
+  const tab = jour ? "historique" : ["ajouter", "historique", "calendrier", "mots"].includes(h) ? h : "accueil";
   document.querySelectorAll(".tabbar a").forEach((a) => a.classList.toggle("on", a.dataset.tab === tab));
   $("#fab").classList.toggle("on", tab === "ajouter");
   if (tab === "ajouter") renderAjouter();
   else if (tab === "calendrier") renderCalendrier();
+  else if (tab === "mots") renderMots();
   else if (jour) renderJour(startOfDay(jour));
   else if (tab === "historique") renderHistorique();
   else renderAccueil();
   if (route.lastHash !== h) window.scrollTo(0, 0);
   route.lastTab = tab; route.lastHash = h;
+  majBadgeMots();
 }
 
 /* ---------- Transition « coup de patte » ----------
@@ -944,8 +1053,10 @@ async function start() {
   }
   store.subscribe((list) => {
     const all = list.filter((e) => typeof e.time === "number");
-    events = all.filter((e) => e.type !== "rdv");
+    events = all.filter((e) => e.type !== "rdv" && e.type !== "mot");
     rdvs = all.filter((e) => e.type === "rdv");
+    mots = all.filter((e) => e.type === "mot");
+    majBadgeMots();
     // Ne pas effacer un formulaire en cours de saisie
     // Ne pas effacer un formulaire en cours de saisie
     if (route.lastTab !== "ajouter" && !(route.lastTab === "calendrier" && cal.adding) && !enSaisie()) route();
