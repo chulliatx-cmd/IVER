@@ -28,7 +28,7 @@ const ICONS = {
   // lune + z
   sieste: '<path class="lune" d="M18.5 15.2A7.5 7.5 0 1 1 9 5a6 6 0 0 0 9.5 10.2z"/><path class="z" d="M15 3.5h3.5L15 7.5h3.5"/>',
   // empreinte de patte
-  balade: '<circle class="o o1" cx="6.6" cy="10" r="1.7"/><circle class="o o2" cx="10" cy="6.4" r="1.7"/><circle class="o o3" cx="14" cy="6.4" r="1.7"/><circle class="o o4" cx="17.4" cy="10" r="1.7"/><path class="coussin" d="M12 11.6c2.3 0 5 3.2 5 5.3 0 1.6-1.2 2.5-2.6 2.5-1 0-1.6-.6-2.4-.6s-1.4.6-2.4.6C8.2 19.4 7 18.5 7 16.9c0-2.1 2.7-5.3 5-5.3z"/>',
+  balade: '<g class="corps"><path d="M3.9 13.2a3.2 3.2 0 0 1 3.2-3.2h7.6a2.7 2.7 0 0 1 2.7 2.7v.6a2.4 2.4 0 0 1-2.4 2.4H6.3a2.4 2.4 0 0 1-2.4-2.4z"/><path d="M15.6 10.4V8a3.4 3.4 0 0 1 3.4-3.4h.2a2.2 2.2 0 0 1 2.1 1.6l.3 1h.4a.9.9 0 0 1 .9.9v.3a1.9 1.9 0 0 1-1.9 1.9h-1.7"/><path d="M16.8 5.2c-1.2.6-1.6 2.2-.9 3.7" fill="currentColor"/><circle cx="19" cy="7.3" r=".85" fill="currentColor" stroke="none"/><path class="queue" d="M4.2 11.6c-1.5-.5-2.4-1.9-2.2-3.6"/></g><path class="patte pA" style="transform-origin:6px 15.7px" d="M6 15.7v4.8"/><path class="patte pB" style="transform-origin:8.6px 15.7px" d="M8.6 15.7v4.8"/><path class="patte pB" style="transform-origin:12.8px 15.7px" d="M12.8 15.7v4.8"/><path class="patte pA" style="transform-origin:15.4px 15.7px" d="M15.4 15.7v4.8"/>',
   // goutte barrée (accident)
   accident: '<path d="M12 3.2c3.2 4.1 6.2 7.4 6.2 11a6.2 6.2 0 0 1-12.4 0c0-3.6 3-6.9 6.2-11z"/><path d="M4 4l16 16"/>',
   // stéthoscope
@@ -143,7 +143,8 @@ function detail(ev) {
   return parts.join(" · ");
 }
 
-const ICON_PAW = `<svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true" style="transform:rotate(12deg)"><circle cx="6.4" cy="10.2" r="2.1"/><circle cx="9.9" cy="6.2" r="2.1"/><circle cx="14.1" cy="6.2" r="2.1"/><circle cx="17.6" cy="10.2" r="2.1"/><path d="M12 11.4c2.6 0 5.6 3.5 5.6 5.9 0 1.8-1.4 2.8-2.9 2.8-1.1 0-1.8-.7-2.7-.7s-1.6.7-2.7.7c-1.5 0-2.9-1-2.9-2.8 0-2.4 3-5.9 5.6-5.9z"/></svg>`;
+const PATTE = '<circle cx="6.4" cy="10.2" r="2.1"/><circle cx="9.9" cy="6.2" r="2.1"/><circle cx="14.1" cy="6.2" r="2.1"/><circle cx="17.6" cy="10.2" r="2.1"/><path d="M12 11.4c2.6 0 5.6 3.5 5.6 5.9 0 1.8-1.4 2.8-2.9 2.8-1.1 0-1.8-.7-2.7-.7s-1.6.7-2.7.7c-1.5 0-2.9-1-2.9-2.8 0-2.4 3-5.9 5.6-5.9z"/>';
+const ICON_PAW = `<svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true" style="transform:rotate(12deg)">${PATTE}</svg>`;
 const ICON_CLOCK = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>`;
 const ICON_CAL = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>`;
 const dateLongue = (ms) => {
@@ -979,7 +980,7 @@ function coupDePatte(afficher) {
   const patte = document.createElement("div");
   patte.className = "fx-paw";
   patte.style.cssText = `left:${tap.x}px;top:${tap.y}px;color:${couleur}`;
-  patte.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${ICONS.balade}</svg>`;
+  patte.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${PATTE}</svg>`;
   fx.appendChild(patte); els.push(patte);
   const rot = Math.round(Math.random() * 40 - 20);
   patte.animate([
