@@ -382,6 +382,13 @@ function renderJour(d0) {
       <div class="txt"><span class="lbl">Dernier pipi</span>${lastHtml}
     </div>
 
+    ${parcours.length ? (() => { const t = statsTerritoire(); return `<a href="#/territoire" class="card rdv-next live">
+      <div class="ico" style="background:var(--pink);color:#0A0A0F">${svgIcon("balade", 26)}</div>
+      <div class="txt"><span class="lbl">Territoire</span>
+        <span class="val">${t.n} zones · ${km2Txt(t.km2)} km²</span>
+        <span class="lbl">${t.semaine ? `+${t.semaine} cette semaine` : "Ajoutez un parcours après la balade"}</span></div>
+    </a>`; })() : ""}
+
     ${nextRdv ? `<a href="#/calendrier" class="card rdv-next live">
       <div class="ico" style="background:${RDV[nextRdv.rdvType]?.color || "#9B98A6"};color:#0A0A0F">${svgIcon(nextRdv.rdvType in RDV ? nextRdv.rdvType : "autre", 24)}</div>
       <div class="txt"><span class="lbl">Prochain rendez-vous</span>
@@ -929,9 +936,261 @@ function renderMots() {
   });
 }
 
+/* ---------- Écran : Territoire (carte à carrés de 150 m, ajout manuel) ----------
+   Chaque parcours enregistré = un document { type: "parcours", cells: [...] }.
+   Le territoire = l'union des carrés de tous les parcours. Aucun tracé GPS n'est stocké. */
+
+const CELL_M = 150;
+const DLAT = CELL_M / 111320;
+const KM2_PAR_CASE = (CELL_M / 1000) ** 2;
+const dLngRang = (i) => DLAT / Math.cos(((i + 0.5) * DLAT * Math.PI) / 180);
+function caseDe(lat, lng) {
+  const i = Math.floor(lat / DLAT);
+  return `${i}_${Math.floor(lng / dLngRang(i))}`;
+}
+function boundsCase(id) {
+  const [i, j] = id.split("_").map(Number);
+  const w = dLngRang(i);
+  return [[i * DLAT, j * w], [(i + 1) * DLAT, (j + 1) * w]];
+}
+const coinsCase = (id) => { const [[s, o], [n, e]] = boundsCase(id); return [[s, o], [n, o], [n, e], [s, e]]; };
+
+let parcours = [];
+const terr = { map: null, mode: null, outil: "tracer", pending: new Set(), vue: null, couches: {} };
+
+function territoireCases() {
+  const set = new Set();
+  for (const p of parcours) for (const c of p.cells || []) set.add(c);
+  return set;
+}
+
+function statsTerritoire() {
+  const cases = territoireCases();
+  const today = startOfDay(Date.now());
+  const lundi = today - ((new Date(today).getDay() + 6) % 7) * DAY;
+  const semaine = parcours.filter((p) => p.time >= lundi).reduce((s, p) => s + (p.nouvelles || 0), 0);
+  return { n: cases.size, km2: cases.size * KM2_PAR_CASE, semaine };
+}
+const km2Txt = (x) => (x < 1 ? `${Math.round(x * 100) / 100}` : nf(x)).toString().replace(".", ",");
+
+function renderTerritoire() {
+  const st = statsTerritoire();
+  const liste = [...parcours].sort((a, b) => b.time - a.time).slice(0, 12);
+  const nom = esc(CFG.nomChiot || "le chiot");
+  const edit = terr.mode === "ajout";
+  const pressed = (b) => (b ? "true" : "false");
+
+  $("#view").innerHTML = `
+    <h1 class="title">Territoire</h1>
+
+    <div class="stats live terr-stats">
+      <div class="card stat"><div class="k">${tIcon("balade", "sm")}Zones</div><span class="v">${st.n}</span><span class="s">carrés de ${CELL_M} m</span></div>
+      <div class="card stat"><div class="k">${tIcon("autre", "sm")}Surface</div><span class="v">${km2Txt(st.km2)}</span><span class="s">km² explorés</span></div>
+      <div class="card stat wide"><div class="k">${tIcon("pipi", "sm")}Cette semaine</div><span class="v">+${st.semaine}</span><span class="s">${st.semaine ? `nouvelles zones pour ${nom}` : "aucune nouvelle zone pour l’instant"}</span></div>
+    </div>
+
+    <div class="carte-wrap card">
+      <div id="carte" class="carte ${edit ? "edit" : ""} ${edit && terr.outil === "tracer" ? "tracer" : ""}"></div>
+      <div class="carte-haut">
+        <button type="button" class="carte-btn" id="loc" aria-label="Me localiser">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3.5"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3"/><circle cx="12" cy="12" r="7.5"/></svg>
+        </button>
+      </div>
+      ${edit ? `
+        <div class="carte-outils">
+          <div class="seg">
+            <button type="button" data-outil="tracer" aria-pressed="${pressed(terr.outil === "tracer")}">Tracer au doigt</button>
+            <button type="button" data-outil="toucher" aria-pressed="${pressed(terr.outil === "toucher")}">Toucher les carrés</button>
+          </div>
+          <span class="carte-aide">${terr.outil === "tracer" ? "Glissez le doigt le long du parcours" : "Touchez chaque carré traversé"}</span>
+          <div class="inline">
+            <button type="button" class="btn-soft" id="tAnnuler">Annuler</button>
+            <button type="button" class="save" id="tValider" style="flex:1">Valider <span id="tCompte"></span></button>
+          </div>
+        </div>` : ""}
+      ${!edit && !st.n ? `<div class="carte-vide">Touchez « Ajouter un parcours » puis tracez votre balade sur la carte.</div>` : ""}
+    </div>
+
+    ${edit ? "" : `<button type="button" class="save" id="tAjouter">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+      Ajouter un parcours</button>`}
+
+    <div class="list">
+      <h2 class="h2">Derniers parcours</h2>
+      ${liste.length ? liste.map((p) => {
+        const pe = person(p.who);
+        return `<div class="ev">
+          ${tIcon("balade", "md")}
+          <div class="m"><b>+${p.nouvelles || 0} zone${(p.nouvelles || 0) > 1 ? "s" : ""}</b><span>${esc(dateLongue(p.time))} à ${hfr(p.time)} · ${(p.cells || []).length} carrés parcourus</span></div>
+          <span class="who" style="background:${pe.couleur}" title="${esc(pe.nom)}">${esc(pe.initiale)}</span>
+          <button class="del" data-delparc="${esc(p.id)}" aria-label="Supprimer ce parcours">${ICON_TRASH}</button>
+        </div>`;
+      }).join("") : `<div class="empty-msg">Aucun parcours pour l’instant.</div>`}
+    </div>`;
+
+  creerCarte();
+
+  $("#loc").addEventListener("click", localiser);
+  $("#tAjouter")?.addEventListener("click", () => { terr.mode = "ajout"; terr.pending.clear(); renderTerritoire(); });
+  $("#tAnnuler")?.addEventListener("click", () => { terr.mode = null; terr.pending.clear(); renderTerritoire(); });
+  $("#view").querySelectorAll("[data-outil]").forEach((b) => b.addEventListener("click", () => { terr.outil = b.dataset.outil; renderTerritoire(); }));
+  $("#tValider")?.addEventListener("click", validerParcours);
+  $("#view").querySelectorAll("[data-delparc]").forEach((b) => b.addEventListener("click", async () => {
+    if (!confirm("Supprimer ce parcours ? Les zones qu’il est seul à couvrir seront retirées.")) return;
+    await store.remove(b.dataset.delparc);
+    toast("Parcours supprimé");
+  }));
+  majCompte();
+}
+
+function creerCarte() {
+  const el = $("#carte");
+  if (!el) return;
+  if (!window.L) { el.innerHTML = `<div class="carte-vide">Carte indisponible (pas de connexion ?)</div>`; return; }
+  if (terr.map) { terr.map.remove(); terr.map = null; }
+  const map = L.map(el, { zoomControl: false, attributionControl: true, zoomSnap: 0.5 });
+  terr.map = map;
+  L.tileLayer(`https://{s}.basemaps.cartocdn.com/${theme() === "light" ? "light_all" : "dark_all"}/{z}/{x}/{y}{r}.png`, {
+    maxZoom: 19, subdomains: "abcd",
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+  }).addTo(map);
+  L.control.zoom({ position: "bottomright" }).addTo(map);
+  terr.couches = { brouillard: L.layerGroup().addTo(map), zones: L.layerGroup().addTo(map), grille: L.layerGroup().addTo(map), pending: L.layerGroup().addTo(map) };
+
+  // Vue : la dernière vue, sinon le territoire, sinon la France (puis localisation si déjà autorisée)
+  const cases = [...territoireCases()];
+  if (terr.vue) map.setView(terr.vue.c, terr.vue.z);
+  else if (cases.length) map.fitBounds(L.latLngBounds(cases.flatMap(boundsCase)), { padding: [30, 30], maxZoom: 16 });
+  else {
+    map.setView([46.6, 2.4], 5);
+    navigator.permissions?.query({ name: "geolocation" }).then((r) => { if (r.state === "granted") localiser(); }).catch(() => {});
+  }
+  map.on("moveend", () => { terr.vue = { c: map.getCenter(), z: map.getZoom() }; dessinerGrille(); });
+
+  dessinerTerritoire();
+  dessinerGrille();
+  dessinerPending();
+  if (terr.mode === "ajout") brancherSaisie(map, el);
+}
+
+function dessinerTerritoire() {
+  const { brouillard, zones } = terr.couches;
+  if (!brouillard) return;
+  brouillard.clearLayers(); zones.clearLayers();
+  const cases = [...territoireCases()];
+  const fog = theme() === "light" ? "#F6F3F1" : "#0A0A0F";
+  L.polygon([[[-85, -180], [-85, 180], [85, 180], [85, -180]], ...cases.map(coinsCase)], {
+    stroke: false, fillColor: fog, fillOpacity: 0.62, interactive: false
+  }).addTo(brouillard);
+  for (const c of cases) {
+    L.rectangle(boundsCase(c), { color: "#FF4F9A", weight: 1, opacity: 0.55, fillColor: "#FF4F9A", fillOpacity: 0.24, interactive: false }).addTo(zones);
+  }
+}
+
+function dessinerGrille() {
+  const { grille } = terr.couches;
+  if (!grille || !terr.map) return;
+  grille.clearLayers();
+  if (terr.mode !== "ajout" || terr.map.getZoom() < 14) return;
+  const b = terr.map.getBounds();
+  const i0 = Math.floor(b.getSouth() / DLAT), i1 = Math.floor(b.getNorth() / DLAT);
+  const lignes = [];
+  let n = 0;
+  for (let i = i0; i <= i1 + 1; i++) {
+    lignes.push([[i * DLAT, b.getWest()], [i * DLAT, b.getEast()]]);
+    const w = dLngRang(i);
+    for (let j = Math.floor(b.getWest() / w); j <= Math.floor(b.getEast() / w) + 1 && n < 2500; j++, n++) {
+      lignes.push([[i * DLAT, j * w], [(i + 1) * DLAT, j * w]]);
+    }
+  }
+  L.polyline(lignes, { color: theme() === "light" ? "#17141B" : "#FFFFFF", weight: 1, opacity: 0.14, interactive: false }).addTo(grille);
+}
+
+function dessinerPending() {
+  const { pending } = terr.couches;
+  if (!pending) return;
+  pending.clearLayers();
+  const deja = territoireCases();
+  for (const c of terr.pending) {
+    const neuf = !deja.has(c);
+    L.rectangle(boundsCase(c), { color: "#FFD23F", weight: 1.5, opacity: 0.9, fillColor: "#FFD23F", fillOpacity: neuf ? 0.5 : 0.22, interactive: false }).addTo(pending);
+  }
+  majCompte();
+}
+
+function majCompte() {
+  const el = $("#tCompte");
+  if (!el) return;
+  const deja = territoireCases();
+  const neuves = [...terr.pending].filter((c) => !deja.has(c)).length;
+  el.textContent = terr.pending.size ? `(+${neuves} zone${neuves > 1 ? "s" : ""})` : "";
+  $("#tValider").disabled = !terr.pending.size;
+}
+
+function brancherSaisie(map, el) {
+  if (terr.outil === "toucher") {
+    map.doubleClickZoom.disable();
+    map.on("click", (e) => {
+      const c = caseDe(e.latlng.lat, e.latlng.lng);
+      terr.pending.has(c) ? terr.pending.delete(c) : terr.pending.add(c);
+      dessinerPending();
+    });
+    return;
+  }
+  // Tracer au doigt : on bloque le déplacement de la carte pendant le tracé
+  map.dragging.disable(); map.touchZoom.disable(); map.doubleClickZoom.disable(); map.boxZoom.disable();
+  let dernier = null, actif = false;
+  const ajouter = (ll) => {
+    if (dernier) {
+      const d = map.distance(dernier, ll);
+      const pas = Math.max(1, Math.ceil(d / (CELL_M / 4)));
+      for (let k = 1; k <= pas; k++) {
+        const t = k / pas;
+        terr.pending.add(caseDe(dernier.lat + (ll.lat - dernier.lat) * t, dernier.lng + (ll.lng - dernier.lng) * t));
+      }
+    } else terr.pending.add(caseDe(ll.lat, ll.lng));
+    dernier = ll;
+  };
+  const pt = (e) => map.containerPointToLatLng(map.mouseEventToContainerPoint(e));
+  el.addEventListener("pointerdown", (e) => {
+    if (e.target.closest(".leaflet-control")) return;
+    actif = true; dernier = null; el.setPointerCapture?.(e.pointerId); ajouter(pt(e)); dessinerPending();
+  });
+  el.addEventListener("pointermove", (e) => { if (!actif) return; ajouter(pt(e)); dessinerPending(); });
+  const fin = () => { actif = false; dernier = null; };
+  el.addEventListener("pointerup", fin);
+  el.addEventListener("pointercancel", fin);
+}
+
+function localiser() {
+  if (!navigator.geolocation) { toast("Localisation indisponible"); return; }
+  navigator.geolocation.getCurrentPosition((pos) => {
+    const ll = [pos.coords.latitude, pos.coords.longitude];
+    if (!terr.map) return;
+    terr.map.setView(ll, 16);
+    L.circleMarker(ll, { radius: 7, color: "#fff", weight: 2, fillColor: "#FF4F9A", fillOpacity: 1, className: "moi-pulse" }).addTo(terr.couches.pending);
+  }, () => toast("Impossible de vous localiser"), { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
+}
+
+async function validerParcours() {
+  if (!terr.pending.size) return;
+  const deja = territoireCases();
+  const cells = [...terr.pending];
+  const nouvelles = cells.filter((c) => !deja.has(c)).length;
+  $("#tValider").disabled = true;
+  try {
+    await store.add({ type: "parcours", cells, nouvelles, who: moi() || PEOPLE[0]?.id || null, time: Date.now(), createdAt: Date.now() });
+    terr.mode = null; terr.pending.clear();
+    toast(nouvelles ? `+${nouvelles} zone${nouvelles > 1 ? "s" : ""} ! ${CFG.nomChiot || "Le chiot"} agrandit son territoire` : "Parcours enregistré (zones déjà connues)");
+    renderTerritoire();
+  } catch (err) { console.error(err); toast("Échec de l’enregistrement"); $("#tValider").disabled = false; }
+}
+
 /* ---------- Routeur ---------- */
 
 function route() {
+  // Quitter la carte proprement
+  if (terr.map && !/territoire/.test(location.hash)) { terr.map.remove(); terr.map = null; terr.mode = null; terr.pending.clear(); }
   let h = location.hash.replace(/^#\/?/, "");
   const jour = h.startsWith("jour/") ? Number(h.slice(5)) : null;
   if (h.startsWith("ajouter/")) {
@@ -940,12 +1199,13 @@ function route() {
     history.replaceState(null, "", "#/ajouter");
     h = "ajouter";
   }
-  const tab = jour ? "historique" : ["ajouter", "historique", "calendrier", "mots"].includes(h) ? h : "accueil";
+  const tab = jour ? "historique" : ["ajouter", "historique", "calendrier", "mots", "territoire"].includes(h) ? h : "accueil";
   document.querySelectorAll(".tabbar a").forEach((a) => a.classList.toggle("on", a.dataset.tab === tab));
   $("#fab").classList.toggle("on", tab === "ajouter");
   if (tab === "ajouter") renderAjouter();
   else if (tab === "calendrier") renderCalendrier();
   else if (tab === "mots") renderMots();
+  else if (tab === "territoire") renderTerritoire();
   else if (jour) renderJour(startOfDay(jour));
   else if (tab === "historique") renderHistorique();
   else renderAccueil();
@@ -1054,13 +1314,14 @@ async function start() {
   }
   store.subscribe((list) => {
     const all = list.filter((e) => typeof e.time === "number");
-    events = all.filter((e) => e.type !== "rdv" && e.type !== "mot");
+    events = all.filter((e) => e.type !== "rdv" && e.type !== "mot" && e.type !== "parcours");
+    parcours = all.filter((e) => e.type === "parcours");
     rdvs = all.filter((e) => e.type === "rdv");
     mots = all.filter((e) => e.type === "mot");
     majBadgeMots();
     // Ne pas effacer un formulaire en cours de saisie
     // Ne pas effacer un formulaire en cours de saisie
-    if (route.lastTab !== "ajouter" && !(route.lastTab === "calendrier" && cal.adding) && !enSaisie()) route();
+    if (route.lastTab !== "ajouter" && !(route.lastTab === "calendrier" && cal.adding) && !(route.lastTab === "territoire" && terr.mode) && !enSaisie()) route();
   });
   window.addEventListener("hashchange", () => coupDePatte(route));
   route();
