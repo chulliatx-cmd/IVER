@@ -844,6 +844,57 @@ function route() {
   route.lastTab = tab; route.lastHash = h;
 }
 
+/* ---------- Transition « coup de patte » ----------
+   Une vague part du doigt, une patte se tamponne au centre,
+   puis la vague se resserre dans la patte et dévoile la nouvelle page. */
+let dernierTap = null;
+document.addEventListener("pointerdown", (e) => { dernierTap = { x: e.clientX, y: e.clientY }; }, { capture: true, passive: true });
+let enTransition = false;
+const attendre = (ms) => new Promise((r) => setTimeout(r, ms));
+
+async function coupDePatte(afficher) {
+  const voile = $("#veil");
+  const reduit = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (!voile || !voile.animate || reduit || enTransition) { afficher(); return; }
+  enTransition = true;
+  try {
+    const w = innerWidth, h = innerHeight;
+    const { x, y } = dernierTap || { x: w - 50, y: h - 50 };
+    dernierTap = null;
+    voile.classList.toggle("y", /ajouter/.test(location.hash));
+    if (!voile.firstChild) voile.innerHTML = `<svg class="veil-paw" viewBox="0 0 24 24" aria-hidden="true">${ICONS.balade}</svg>`;
+    const patte = voile.firstChild;
+    voile.style.display = "flex";
+    const rIn = Math.hypot(Math.max(x, w - x), Math.max(y, h - y));
+    await voile.animate(
+      { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${rIn}px at ${x}px ${y}px)`] },
+      { duration: 210, easing: "cubic-bezier(.7,0,.3,1)", fill: "forwards" }).finished;
+    afficher();
+    window.scrollTo(0, 0);
+    const tampon = patte.animate(
+      [{ transform: "scale(.3) rotate(-30deg)", opacity: 0 },
+       { transform: "scale(1.18) rotate(-10deg)", opacity: 1, offset: .65 },
+       { transform: "scale(1) rotate(-10deg)", opacity: 1 }],
+      { duration: 220, easing: "ease-out", fill: "forwards" });
+    await attendre(150);
+    const cx = w / 2, cy = h / 2, rOut = Math.hypot(cx, cy);
+    patte.animate([{ transform: "scale(1) rotate(-10deg)" }, { transform: "scale(.2) rotate(10deg)", opacity: 0 }],
+      { duration: 280, easing: "cubic-bezier(.6,0,.2,1)", fill: "forwards" });
+    await voile.animate(
+      { clipPath: [`circle(${rOut}px at ${cx}px ${cy}px)`, `circle(0px at ${cx}px ${cy}px)`] },
+      { duration: 280, easing: "cubic-bezier(.6,0,.2,1)", fill: "forwards" }).finished;
+    tampon.cancel();
+    voile.getAnimations().forEach((a) => a.cancel());
+    patte.getAnimations().forEach((a) => a.cancel());
+  } catch (err) {
+    console.error(err);
+    afficher();
+  } finally {
+    voile.style.display = "none";
+    enTransition = false;
+  }
+}
+
 /* ---------- Thème clair / sombre (mémorisé sur chaque téléphone) ---------- */
 function theme() { return document.documentElement.dataset.theme === "light" ? "light" : "dark"; }
 function setTheme(t) {
@@ -893,7 +944,7 @@ async function start() {
     // Ne pas effacer un formulaire en cours de saisie
     if (route.lastTab !== "ajouter" && !(route.lastTab === "calendrier" && cal.adding) && !enSaisie()) route();
   });
-  window.addEventListener("hashchange", route);
+  window.addEventListener("hashchange", () => coupDePatte(route));
   route();
   verifierMiseAJour();
   // Rafraîchit "il y a X min" chaque minute

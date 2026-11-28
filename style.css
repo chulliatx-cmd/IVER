@@ -208,3 +208,8 @@ textarea.input{height:auto;padding:12px 14px;font-size:15px;font-weight:500;font
 .stat .k{gap:10px}
 .avg-i .k{gap:7px}
 .icon-only{width:42px;height:42px;padding:0;justify-content:center}
+
+/* Transition « coup de patte » */
+.veil{position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;background:var(--pink);clip-path:circle(0px at 50% 50%);pointer-events:none}
+.veil.y{background:var(--yellow)}
+.veil-paw{width:132px;height:132px;fill:#0A0A0F;stroke:#0A0A0F;stroke-width:.6;opacity:0}
