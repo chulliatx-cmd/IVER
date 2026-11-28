@@ -36,7 +36,7 @@ const ICONS = {
   // ciseaux
   toiletteur: '<circle cx="6" cy="17" r="2.6"/><circle cx="6" cy="7" r="2.6"/><path d="M8.2 8.4 20 17M8.2 15.6 20 7"/>',
   // seringue
-  vaccin: '<path d="M14.5 3.5l6 6M17.5 6.5l-9.8 9.8-3.6.6.6-3.6 9.8-9.8M10.5 9.5l2 2M8.5 11.5l2 2M3.5 20.5l3-3"/>',
+  vaccin: '<g transform="rotate(-45 12 12)"><rect x="6" y="8.6" width="11.4" height="6.8" rx="1.6"/><path d="M0.8 12H6M17.4 12h3.6M21 8.4v7.2M9.6 8.6v2.6M12.8 8.6v2.6"/></g>',
   // calendrier
   autre: '<rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/>'
 };
