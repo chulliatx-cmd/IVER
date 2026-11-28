@@ -1050,10 +1050,9 @@ function creerCarte() {
   if (terr.map) { terr.map.remove(); terr.map = null; }
   const map = L.map(el, { zoomControl: false, attributionControl: true, zoomSnap: 0.5 });
   terr.map = map;
-  // Fond OpenStreetMap (gratuit, sans clé). En thème sombre, assombri par un filtre CSS.
-  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    maxZoom: 19,
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+  L.tileLayer(`https://{s}.basemaps.cartocdn.com/${theme() === "light" ? "light_all" : "dark_all"}/{z}/{x}/{y}{r}.png`, {
+    maxZoom: 19, subdomains: "abcd",
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
   }).addTo(map);
   L.control.zoom({ position: "bottomright" }).addTo(map);
   terr.couches = { brouillard: L.layerGroup().addTo(map), zones: L.layerGroup().addTo(map), grille: L.layerGroup().addTo(map), pending: L.layerGroup().addTo(map) };
