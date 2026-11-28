@@ -9,7 +9,10 @@ window.CHIOT_CONFIG = {
     { id: "b", nom: "Violaine", initiale: "V", couleur: "#B4467A" }
   ],
 
-  // Rappel "Sortir bientôt" si pas de pipi depuis X minutes
+  // Date de naissance (AAAA-MM-JJ) : les rappels de sortie et de repas s'adaptent à son âge
+  naissance: "2026-09-19",
+
+  // Rappel "Sortir bientôt" si pas de pipi depuis X minutes (utilisé seulement sans date de naissance)
   rappelPipiMinutes: 90,
 
   // Synchronisation entre vos deux téléphones (Firebase, gratuit).

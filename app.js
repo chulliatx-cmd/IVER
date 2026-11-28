@@ -3,6 +3,32 @@ const CFG = window.CHIOT_CONFIG || {};
 const PEOPLE = CFG.personnes || [];
 const RAPPEL = CFG.rappelPipiMinutes || 90;
 
+/* ---------- Repères selon l'âge ----------
+   Repères généraux couramment donnés par les vétérinaires et éducateurs (ex. American Kennel Club) :
+   - un chiot se retient au maximum environ « âge en mois + 1 » heures (plafonné à ~8 h) ;
+   - en journée, on le sort bien plus souvent : ~toutes les heures avant 3 mois, puis on espace ;
+   - et toujours au réveil, 10–30 min après un repas, après le jeu ;
+   - repas : 4 par jour jusqu'à ~3 mois, 3 jusqu'à ~6 mois, puis 2.
+   Ce sont des moyennes : chaque chiot est différent, le vétérinaire reste la référence. */
+const NAISSANCE = CFG.naissance ? new Date(CFG.naissance + "T00:00:00").getTime() : null;
+function repereAge(now = Date.now()) {
+  if (!NAISSANCE || now < NAISSANCE) return null;
+  const jours = Math.floor((now - NAISSANCE) / 86400000);
+  const sem = Math.floor(jours / 7);
+  const mois = jours / 30.44;
+  let sortie, repas;
+  if (sem < 12) { sortie = 60; repas = 4; }
+  else if (sem < 16) { sortie = 120; repas = 3; }
+  else if (mois < 6) { sortie = 180; repas = 3; }
+  else if (mois < 12) { sortie = 240; repas = 2; }
+  else { sortie = 360; repas = 2; }
+  const maxH = Math.min(Math.floor(mois) + 1, 8);
+  const ageTxt = sem < 16 ? `${sem} semaines` : mois < 24 ? `${Math.floor(mois)} mois` : `${Math.floor(mois / 12)} ans`;
+  return { jours, sem, mois, sortie, repas, maxH, ageTxt };
+}
+// Intervalle conseillé entre 2 sorties (minutes)
+const intervalleSortie = () => repereAge()?.sortie ?? RAPPEL;
+
 const TYPES = {
   pipi:   { label: "Pipi",   color: "var(--pipi)",   bg: "var(--pipi-bg)",   ink: "var(--pipi-ink)" },
   caca:   { label: "Caca",   color: "var(--caca)",   bg: "var(--caca-bg)",   ink: "var(--caca-ink)" },
@@ -209,7 +235,16 @@ function statTiles(st, isToday) {
   const tiles = [
     { k: "Pipis", c: "pipi", v: st.pipis.length, s: `${st.pipis.length - st.pipiAcc} dehors · ${st.pipiAcc} ${plur(st.pipiAcc, "accident")}` },
     { k: "Cacas", c: "caca", v: st.cacas.length, s: st.cacas[0] ? `dernier à ${hfr(st.cacas[0].time)}` : rien("aucun") },
-    { k: "Repas", c: "repas", v: st.repas.length, s: st.repas[0] ? `dernier à ${hfr(st.repas[0].time)}` : rien("aucun") },
+    { k: "Repas", c: "repas", v: (() => { const R = repereAge(isToday ? Date.now() : st.list[0]?.time); return R ? `${st.repas.length}<small>/${R.repas}</small>` : st.repas.length; })(), s: (() => {
+      const R = repereAge();
+      if (isToday && R) {
+        if (st.repas.length >= R.repas) return "tous les repas du jour sont donnés";
+        const ecart = (12 * 60) / (R.repas - 1);
+        const prochain = st.repas[0] ? st.repas[0].time + ecart * 60000 : startOfDay(Date.now()) + 7 * 3600000;
+        return `${R.repas} repas/jour à son âge · prochain vers ${hfr(prochain)}`;
+      }
+      return st.repas[0] ? `dernier à ${hfr(st.repas[0].time)}` : rien("aucun");
+    })() },
     { k: "Sommeil", c: "sieste", v: st.sleepMin ? dureeTxt(st.sleepMin) : "0 h", s: `${st.nbSiestes} ${plur(st.nbSiestes, "dodo")}` },
     { k: "Balades", c: "balade", wide: true,
       v: st.balades.length ? dureeTxt(st.baladeMin) : "0 min",
@@ -255,16 +290,16 @@ function weekBars(today) {
 // Le lundi, on affiche la semaine dernière.
 function weekAverages(today) {
   const monday = today - ((new Date(today).getDay() + 6) % 7) * DAY;
-  let from = monday, to = today, titre = "Cette semaine";
-  if (monday === today) { from = monday - 7 * DAY; to = monday; titre = "Semaine dernière"; }
+  // Moyenne sur les jours remplis de la semaine en cours, aujourd'hui compris
+  const titre = "Cette semaine";
   const days = [];
-  for (let d = from; d < to; d += DAY) {
+  for (let d = monday; d <= today; d += DAY) {
     const st = dayStats(d);
     if (st.list.length || st.sleepMin) days.push(st);
   }
   if (!days.length) {
     return `<div class="card">${weekBars(today)}<h2 class="h2" style="margin-top:14px">${titre} · moyennes</h2>
-      <p class="empty-msg" style="padding:12px 0 0;text-align:left">Les moyennes apparaîtront dès qu’une journée complète aura été notée.</p></div>`;
+      <p class="empty-msg" style="padding:12px 0 0;text-align:left">Les moyennes apparaîtront dès que quelque chose sera noté cette semaine.</p></div>`;
   }
   const n = days.length;
   const avg = (f) => days.reduce((s, st) => s + f(st), 0) / n;
@@ -281,7 +316,7 @@ function weekAverages(today) {
     <div class="row-between" style="margin-top:14px">
       <h2 class="h2">${titre} · moyenne / jour</h2>
     </div>
-    <span class="hint">Sur ${n} ${plur(n, "journée")} ${plur(n, "complète")} notée${n > 1 ? "s" : ""}</span>
+    <span class="hint">Sur ${n} ${plur(n, "jour")} ${plur(n, "noté")} cette semaine${dayStats(today).list.length ? ", aujourd’hui compris" : ""}</span>
     <div class="avg">
       ${items.map((i) => `<div class="avg-i">
         <span class="k">${tIcon(i.c, "xs")}${i.k}</span>
@@ -359,12 +394,24 @@ function renderJour(d0) {
   if (isToday) {
     const lastPipi = events.filter((e) => e.type === "pipi").sort((a, b) => b.time - a.time)[0];
     let lastHtml;
+    const R = repereAge(now);
+    const repere = R ? `<span class="repere">Repère à ${R.ageTxt} : sortie toutes les ~${dureeTxt(R.sortie)} en journée, et après repas, dodo ou jeu</span>` : "";
+    const enDodo = siesteEnCours();
+    let badge = null;
     if (lastPipi) {
-      const late = (now - lastPipi.time) / 60000 >= RAPPEL;
-      lastHtml = `<span class="val">${ilYa(lastPipi.time)} · ${hfr(lastPipi.time)}</span></div>
-        <span class="badge ${late ? "warn" : "ok"}">${late ? "Sortir bientôt" : "Tout va bien"}</span>`;
+      const depuis = (now - lastPipi.time) / 60000;
+      const reveil = events.filter((e) => e.type === "sieste" && e.end && e.end <= now).sort((a, b) => b.end - a.end)[0];
+      const repasApres = events.filter((e) => e.type === "repas" && e.time > lastPipi.time && e.time <= now).sort((a, b) => b.time - a.time)[0];
+      if (enDodo) badge = ["ok", "Elle dort"];
+      else if (reveil && reveil.end > lastPipi.time && now - reveil.end < 3 * 3600000) badge = ["warn", "Sortir : réveil"];
+      else if (repasApres && now - repasApres.time >= 10 * 60000) badge = ["warn", "Sortir : repas"];
+      else if (R && depuis >= R.maxH * 60) badge = ["warn", "Sortir vite !"];
+      else if (depuis >= intervalleSortie()) badge = ["warn", "Sortir bientôt"];
+      else badge = ["ok", `Sortie vers ${hfr(lastPipi.time + intervalleSortie() * 60000)}`];
+      lastHtml = `<span class="val">${ilYa(lastPipi.time)} · ${hfr(lastPipi.time)}</span>${repere}</div>
+        <span class="badge ${badge[0]}">${badge[1]}</span>`;
     } else {
-      lastHtml = `<span class="val">Pas encore noté</span></div>`;
+      lastHtml = `<span class="val">Pas encore noté</span>${repere}</div>`;
     }
     const nextRdv = rdvs.filter((r) => r.time >= now - 3600000).sort((a, b) => a.time - b.time)[0];
     const dort = siesteEnCours();
@@ -406,6 +453,17 @@ function renderJour(d0) {
       <button type="button" class="btn-soft" id="share" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M16 6l-4-4-4 4M12 2v13"/></svg>
         Partager le lien de l’app</button>
+      ${(() => { const R = repereAge(); return R ? `<div class="reperes">
+        <b>Repères pour ${esc(CFG.nomChiot || "le chiot")} · ${R.ageTxt}</b>
+        <ul>
+          <li>Sortie conseillée en journée : toutes les ~${dureeTxt(R.sortie)}</li>
+          <li>Se retient au maximum ~${R.maxH} h (règle « âge en mois + 1 »)</li>
+          <li>Toujours sortir au réveil, 10 à 30 min après un repas et après le jeu</li>
+          <li>${R.repas} repas par jour à son âge</li>
+          <li>Sommeil : 18 à 20 h par jour, c’est normal</li>
+        </ul>
+        <small>Repères généraux de vétérinaires et éducateurs (ex. American Kennel Club). Ils s’adaptent tout seuls à son âge ; votre véto reste la référence.</small>
+      </div>` : ""; })()}
       <label class="switch-row">
         <span><b>Guide automatique</b><small>Se lance à la première ouverture et après les grosses mises à jour</small></span>
         <input type="checkbox" id="gAuto" class="switch" ${guideOff() ? "" : "checked"}>
@@ -448,6 +506,11 @@ function renderJour(d0) {
     <div class="daynav">
       <a href="#/jour/${prev}" class="btn-soft">‹ Veille</a>
       ${next < today ? `<a href="#/jour/${next}" class="btn-soft">Lendemain ›</a>` : `<a href="#/" class="btn-soft">Aujourd’hui ›</a>`}
+    </div>
+    <a href="#/ajouter" class="save" style="text-decoration:none">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+      Ajouter un oubli ce jour-là</a>
+    <div style="display:none">
     </div>`;
   }
 
@@ -581,12 +644,14 @@ function renderAjouter() {
   const t = form.type;
   const pressed = (b) => (b ? "true" : "false");
   const edit = !!form.editId;
-  const dort = edit ? null : siesteEnCours();
-  const sMode = dort ? "terminee" : (form.sMode || "encours");
+  if (!form.date) form.date = ymd(Date.now());
+  const passe = form.date !== ymd(Date.now());
+  const dort = edit || passe ? null : siesteEnCours();
+  const sMode = dort || passe ? "terminee" : (form.sMode || "encours");
 
   $("#view").innerHTML = `
     <div class="formhead">
-      <a href="${edit ? esc(form.retour) : "#/"}" class="back" id="fback" aria-label="Retour"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></a>
+      <a href="${edit ? esc(form.retour) : esc(form.retourJour || "#/")}" class="back" id="fback" aria-label="Retour"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></a>
       <h1 class="title">${edit ? "Modifier" : "Nouvelle entrée"}</h1>
     </div>
 
@@ -603,15 +668,15 @@ function renderAjouter() {
         </div>
       </div>
 
-      ${edit ? `
-        <div class="field">
-          <label for="date" class="eyebrow">Quel jour ?</label>
-          <input id="date" class="input" type="date" value="${esc(form.date)}" max="${ymd(Date.now())}" required>
-        </div>` : ""}
+      <div class="field">
+        <label for="date" class="eyebrow">Quel jour ?</label>
+        <input id="date" class="input" type="date" value="${esc(form.date)}" max="${ymd(Date.now())}" required>
+        ${passe && !edit ? `<span class="hint">Ajout pour un jour passé : ${esc(dateLongue(msDe(form.date, "12:00")))}</span>` : ""}
+      </div>
 
       ${t === "sieste" && dort ? sleepNowCard(dort) : ""}
 
-      ${t === "sieste" && !dort ? `
+      ${t === "sieste" && !dort && !passe ? `
         <div class="field">
           <span class="eyebrow">Le dodo…</span>
           <div class="choices">
@@ -726,7 +791,8 @@ function renderAjouter() {
   $("#nowDebut")?.addEventListener("click", () => { $("#debut").value = nowHHMM(); });
 
   $("#now")?.addEventListener("click", () => { $("#heure").value = nowHHMM(); if ($("#date")) $("#date").value = ymd(Date.now()); });
-  $("#fback")?.addEventListener("click", () => { if (edit) setTimeout(resetForm, 0); });
+  $("#fback")?.addEventListener("click", () => { if (edit) setTimeout(resetForm, 0); else { form.date = undefined; form.retourJour = undefined; } });
+  $("#date")?.addEventListener("change", () => { keep(); renderAjouter(); });
   $("#fdel")?.addEventListener("click", async () => {
     if (!confirm("Supprimer cette entrée ?")) return;
     await store.remove(form.editId);
@@ -752,7 +818,7 @@ function renderAjouter() {
     const ev = { type: form.type, who: form.who || null, note: (form.note || "").trim() };
     if (!edit) ev.createdAt = Date.now();
     // En modification, l'heure s'applique au jour choisi ; sinon aujourd'hui (ou hier si l'heure est à venir)
-    const T = (hm, ref) => (edit ? msDe(form.date, hm) : hhmmToMs(hm, ref));
+    const T = (hm, ref) => (edit || passe ? msDe(form.date, hm) : hhmmToMs(hm, ref));
     if (form.type === "sieste" && sMode === "encours") {
       ev.time = T(form.debut);
       ev.end = null;
@@ -785,7 +851,9 @@ function renderAjouter() {
       await store.add(ev);
       toast(ev.type === "sieste" && ev.end == null ? "Bon dodo ! Notez le réveil depuis l’accueil" : `${TYPES[form.type].label} enregistré${FEMININ[form.type] ? "e" : ""}`);
       form.heure = form.debut = form.fin = form.note = form.qty = undefined;
-      location.hash = "#/";
+      const jourAjout = startOfDay(ev.time);
+      form.date = undefined; form.retourJour = undefined;
+      location.hash = jourAjout === startOfDay(Date.now()) ? "#/" : `#/jour/${jourAjout}`;
     } catch (err) {
       console.error(err);
       toast("Échec de l’enregistrement");
@@ -1106,9 +1174,9 @@ function etapesGuide() {
     { sel: "#fab", titre: "Le gros +", texte: "Ouvre le formulaire complet : heure, dehors ou accident, quantité, durée, qui note, petite note…" },
     { sel: ".sleep-now", titre: "Dodo en cours", texte: `${nom} dort ! Le compteur tourne ; touchez « Elle s’est réveillée » au réveil.` },
     { sel: ".postit-apercu", titre: "Le dernier post-it", texte: "Le dernier mot laissé s’affiche ici. Touchez-le pour voir tous les post-it." },
-    { sel: ".last", titre: "Dernier pipi", texte: "Depuis combien de temps, avec un rappel « Sortir bientôt » quand ça fait longtemps." },
+    { sel: ".last", titre: "Dernier pipi", texte: "Depuis combien de temps, et quand la sortir selon son âge : après un repas, au réveil, ou quand ça fait trop longtemps." },
     { sel: ".stats", titre: "La journée en chiffres", texte: "Pipis (dehors / accidents), cacas, repas, sommeil et balades du jour." },
-    { sel: ".wbars", carte: true, titre: "La semaine", texte: "Les pipis jour par jour (en rose : les accidents) et les moyennes par jour de la semaine." },
+    { sel: ".wbars", carte: true, titre: "La semaine", texte: "Les pipis jour par jour (en rose : les accidents) et les moyennes sur les jours notés de la semaine." },
     { sel: ".ev.editable", titre: "Détail de la journée", texte: "Toutes les entrées du jour. Touchez une ligne pour la corriger ou la supprimer." },
     { sel: '.tabbar a[data-tab="calendrier"]', titre: "Calendrier", texte: "Vétérinaire, toiletteur, vaccins… Touchez un rendez-vous pour le modifier." },
     { sel: '.tabbar a[data-tab="mots"]', titre: "Mots", texte: "Laissez-vous des post-it. Une pastille rose signale les nouveaux mots de l’autre." },
@@ -1235,6 +1303,11 @@ function route() {
   let h = location.hash.replace(/^#\/?/, "");
   const jour = h.startsWith("jour/") ? Number(h.slice(5)) : null;
   if ((h === "ajouter" || h.startsWith("ajouter/")) && form.editId) resetForm();
+  if ((h === "ajouter" || h.startsWith("ajouter/")) && route.lastHash !== "ajouter") {
+    const prev = route.lastHash || "";
+    if (prev.startsWith("jour/")) { form.date = ymd(Number(prev.slice(5))); form.retourJour = "#/" + prev; }
+    else { form.date = undefined; form.retourJour = undefined; }
+  }
   if (h === "modifier" && !form.editId) h = "ajouter";
   if (h !== "modifier" && form.editId) resetForm();
   if (h.startsWith("ajouter/")) {
