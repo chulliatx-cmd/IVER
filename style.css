@@ -298,3 +298,17 @@ textarea.input{height:auto;padding:12px 14px;font-size:15px;font-weight:500;font
 .pa-txt{font-family:Caveat,"Comic Sans MS",cursive;font-size:24px;font-weight:600;line-height:1.1}
 @media (prefers-reduced-motion:reduce){.postit.neuf{animation:none}}
 .postit-apercu.neuf::after{content:"Nouveau";position:absolute;top:-10px;right:-4px;background:var(--ink);color:var(--bg);font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;padding:4px 7px;border-radius:999px;transform:rotate(6deg)}
+
+/* Thème clair : plus de rayures, cartes en dégradé de la couleur de leur type */
+:root[data-theme="light"]{--hatch:linear-gradient(transparent,transparent)}
+:root[data-theme="light"] .card,:root[data-theme="light"] .ev{background:linear-gradient(160deg,#FFFFFF 30%,#FFEFF5);border-color:#F1E3EA}
+:root[data-theme="light"] .t-pipi{--g1:#FFE38A;--g2:#F6D364}
+:root[data-theme="light"] .t-caca{--g1:#F9CFAA;--g2:#EDB98D}
+:root[data-theme="light"] .t-repas{--g1:#BDEFD2;--g2:#97DDB6}
+:root[data-theme="light"] .t-sieste{--g1:#DCCFFF;--g2:#C6B5F7}
+:root[data-theme="light"] .t-balade,:root[data-theme="light"] .t-rdv{--g1:#FFC6DC;--g2:#F7A9C8}
+:root[data-theme="light"] .t-accident{--g1:#FFC6DC;--g2:#F7A9C8}
+:root[data-theme="light"] .card[class*="t-"],:root[data-theme="light"] .ev[class*="t-"]{background:linear-gradient(140deg,var(--g1) 0%,#FFFFFF 78%);border-color:var(--g2)}
+:root[data-theme="light"] .ev[class*="t-"]{background:linear-gradient(100deg,var(--g1) 0%,#FFFFFF 62%)}
+:root[data-theme="light"] .sleep-now{background:linear-gradient(140deg,#DCCFFF,#FFD6E7 70%,#FFFFFF);border-color:#C6B5F7}
+:root[data-theme="light"] .ti{background:rgba(255,255,255,.7)!important}

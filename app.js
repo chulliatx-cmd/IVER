@@ -158,7 +158,7 @@ const ICON_TRASH = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" 
 function eventRow(ev, withDelete) {
   const t = TYPES[ev.type] || TYPES.pipi;
   const p = person(ev.who);
-  return `<div class="ev">
+  return `<div class="ev t-${ev.type in TYPES ? ev.type : "pipi"}">
     <span class="t">${hhmm(ev.time)}</span>
     ${tIcon(ev.type, "md")}
     <div class="m"><b>${t.label}</b><span>${esc(detail(ev))}</span></div>
@@ -201,7 +201,7 @@ function statTiles(st, isToday) {
       s: st.balades.length ? `${st.balades.length} ${plur(st.balades.length, "balade")} · dernière à ${hfr(st.balades[0].time)}` : rien("aucune") }
   ];
   return `<div class="stats live">
-    ${tiles.map((s) => `<div class="card stat${s.wide ? " wide" : ""}">
+    ${tiles.map((s) => `<div class="card stat t-${s.c}${s.wide ? " wide" : ""}">
       <div class="k">${tIcon(s.c, "sm")}${s.k}</div>
       <span class="v">${s.v}</span><span class="s">${s.s}</span>
     </div>`).join("")}
@@ -377,12 +377,12 @@ function renderJour(d0) {
 
     ${dort ? sleepNowCard(dort) : ""}
 
-    <div class="card last live">
+    <div class="card last live t-pipi">
       <div class="ico">${svgIcon("pipi", 24)}</div>
       <div class="txt"><span class="lbl">Dernier pipi</span>${lastHtml}
     </div>
 
-    ${nextRdv ? `<a href="#/calendrier" class="card rdv-next live">
+    ${nextRdv ? `<a href="#/calendrier" class="card rdv-next live t-rdv">
       <div class="ico" style="background:${RDV[nextRdv.rdvType]?.color || "#9B98A6"};color:#0A0A0F">${svgIcon(nextRdv.rdvType in RDV ? nextRdv.rdvType : "autre", 24)}</div>
       <div class="txt"><span class="lbl">Prochain rendez-vous</span>
         <span class="val">${esc(RDV[nextRdv.rdvType]?.label || "Rendez-vous")}${nextRdv.title ? " · " + esc(nextRdv.title) : ""}</span>
@@ -681,7 +681,7 @@ function rdvRow(r) {
   const t = RDV[r.rdvType] || RDV.autre;
   const p = person(r.who);
   const sub = [dateLongue(r.time) + " à " + hfr(r.time), r.note].filter(Boolean).join(" · ");
-  return `<div class="ev">
+  return `<div class="ev t-rdv">
     ${tIcon(r.rdvType in RDV ? r.rdvType : "autre", "md")}
     <div class="m"><b>${esc(t.label)}${r.title ? " · " + esc(r.title) : ""}</b><span>${esc(sub)}</span></div>
     <span class="who" style="background:${p.couleur}" title="${esc(p.nom)}">${esc(p.initiale)}</span>
