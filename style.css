@@ -186,8 +186,8 @@ textarea.input{height:auto;padding:12px 14px;font-size:15px;font-weight:500;font
 
 /* Navigation flottante */
 .dock{position:fixed;left:0;right:0;bottom:calc(14px + env(safe-area-inset-bottom));z-index:6;display:flex;justify-content:center;gap:12px;padding:0 14px;pointer-events:none}
-.tabbar{pointer-events:auto;flex:1;max-width:440px;height:72px;border-radius:999px;background:var(--dock);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--line);display:flex;align-items:center;justify-content:space-around;padding:0 6px;box-shadow:0 10px 30px var(--shadow)}
-.tabbar a{flex:1;min-width:0;height:60px;border-radius:999px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;text-decoration:none;color:var(--muted);font-size:10.5px;font-weight:600}
+.tabbar{pointer-events:auto;flex:1;max-width:400px;height:72px;border-radius:999px;background:var(--dock);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--line);display:flex;align-items:center;justify-content:space-around;padding:0 6px;box-shadow:0 10px 30px var(--shadow)}
+.tabbar a{flex:1;height:60px;border-radius:999px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;text-decoration:none;color:var(--muted);font-size:11px;font-weight:600}
 .tabbar a.on{color:var(--ink);background:var(--tab-on);font-weight:700}
 .fab{pointer-events:auto;width:72px;height:72px;border-radius:50%;background:var(--pink);color:#0A0A0F;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 10px 30px rgba(255,79,154,.35);border:1px solid #FF7DB5}
 .fab.on{background:var(--yellow);border-color:#FFE07A;box-shadow:0 10px 30px rgba(255,210,63,.3)}
@@ -294,24 +294,3 @@ textarea.input{height:auto;padding:12px 14px;font-size:15px;font-weight:500;font
 .pa-top{font-family:var(--mono);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:#5A4A38}
 .pa-txt{font-family:Caveat,"Comic Sans MS",cursive;font-size:24px;font-weight:600;line-height:1.1}
 @media (prefers-reduced-motion:reduce){.postit.neuf{animation:none}}
-
-/* Territoire */
-.terr-stats .stat .v{font-size:28px}
-.carte-wrap{padding:0;overflow:hidden;position:relative}
-.carte{height:min(62vh,520px);min-height:360px;width:100%;background:var(--card2)}
-.carte.tracer{cursor:crosshair;touch-action:none}
-.carte-haut{position:absolute;top:12px;right:12px;z-index:500;display:flex;flex-direction:column;gap:8px}
-.carte-btn{width:44px;height:44px;border-radius:14px;border:1px solid var(--line);background:var(--dock);color:var(--ink);display:flex;align-items:center;justify-content:center;cursor:pointer;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
-.carte-outils{display:flex;flex-direction:column;gap:10px;padding:14px;border-top:1px solid var(--line);background:var(--card)}
-.carte-aide{font-size:13px;color:var(--muted);font-weight:500;text-align:center}
-.seg{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:var(--card2);border:1px solid var(--line);border-radius:999px;padding:4px}
-.seg button{height:40px;border:0;border-radius:999px;background:transparent;color:var(--muted);font-weight:700;font-size:13px;cursor:pointer}
-.seg button[aria-pressed=true]{background:var(--yellow);color:#0A0A0F}
-.carte-vide{position:absolute;left:12px;right:68px;top:12px;z-index:500;background:var(--dock);border:1px solid var(--line);border-radius:16px;padding:12px 14px;font-size:14px;font-weight:600;text-align:center;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
-.leaflet-container{font-family:Inter,system-ui,sans-serif;background:var(--card2)}
-.leaflet-control-attribution{font-size:10px;background:var(--dock)!important;color:var(--muted)}
-.leaflet-control-attribution a{color:var(--muted)}
-.leaflet-bar a{background:var(--dock);color:var(--ink);border-color:var(--line)!important}
-.leaflet-bar{border:1px solid var(--line)!important;border-radius:12px!important;overflow:hidden}
-.moi-pulse{animation:moi 1.6s ease-out infinite}
-@keyframes moi{0%{stroke-opacity:1;stroke-width:2}100%{stroke-opacity:0;stroke-width:14}}
